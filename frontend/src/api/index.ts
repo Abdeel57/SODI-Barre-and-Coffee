@@ -89,10 +89,24 @@ export interface LoginData {
 }
 
 export interface RegisterData {
-  name: string
-  email: string
-  phone?: string
-  password: string
+  name:      string
+  email:     string
+  phone?:    string
+  password:  string
+  gender?:   string
+  birthDate?: string
+}
+
+export interface HealthProfileData {
+  hasSurgeries:          boolean
+  surgeriesDetail?:      string
+  isPregnant:            boolean
+  pregnancyWeeks?:       number | null
+  bloodType?:            string
+  emergencyContactName?: string
+  emergencyContactPhone?:string
+  allergies?:            string
+  injuries?:             string
 }
 
 export const authApi = {
@@ -130,4 +144,9 @@ export const pushApi = {
   subscribe: (subscription: PushSubscriptionJSON) =>
     api.post('/api/push/subscribe', subscription),
   unsubscribe: () => api.delete('/api/push/unsubscribe'),
+}
+
+export const profileApi = {
+  getHealth:    ()                      => api.get('/api/profile/health'),
+  updateHealth: (data: HealthProfileData) => api.put('/api/profile/health', data),
 }

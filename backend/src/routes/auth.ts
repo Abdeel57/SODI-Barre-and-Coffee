@@ -34,15 +34,29 @@ function generateTokens(payload: { id: string; email: string; role: string }) {
 
 // ─── POST /api/auth/register ──────────────────────────────────────────────────
 const registerSchema = z.object({
-  name: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
-  email: z.string().email('Email inválido'),
-  phone: z.string().optional(),
-  password: z.string().min(8, 'La contraseña debe tener al menos 8 caracteres'),
+  name:      z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
+  email:     z.string().email('Email inválido'),
+  phone:     z.string().optional(),
+  password:  z.string().min(8, 'La contraseña debe tener al menos 8 caracteres'),
+  gender:    z.enum(['FEMALE', 'MALE', 'OTHER', 'PREFER_NOT_TO_SAY']).optional(),
+  birthDate: z.string().optional(),
 })
 
 router.post('/register', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const body = registerSchema.parse(req.body)
+
+    // ── Validación de edad mínima (16 años) ───────────────────────────────────
+    if (body.birthDate) {
+      const birth = new Date(body.birthDate)
+      const today = new Date()
+      let age = today.getFullYear() - birth.getFullYear()
+      const m = today.getMonth() - birth.getMonth()
+      if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--
+      if (age < 16) {
+        return next(createError(400, 'Debes tener al menos 16 años para registrarte'))
+      }
+    }
 
     const existing = await prisma.user.findUnique({ where: { email: body.email } })
     if (existing) {
@@ -53,11 +67,13 @@ router.post('/register', async (req: Request, res: Response, next: NextFunction)
 
     const user = await prisma.user.create({
       data: {
-        name: body.name,
-        email: body.email,
-        phone: body.phone,
+        name:         body.name,
+        email:        body.email,
+        phone:        body.phone,
         passwordHash,
-        role: 'STUDENT',
+        role:         'STUDENT',
+        gender:       body.gender,
+        birthDate:    body.birthDate ? new Date(body.birthDate) : undefined,
       },
       select: { id: true, name: true, email: true, role: true },
     })

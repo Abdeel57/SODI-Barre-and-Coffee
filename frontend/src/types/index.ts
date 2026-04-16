@@ -39,13 +39,30 @@ export interface Package {
 }
 
 export type BookingStatus = 'CONFIRMED' | 'CANCELLED' | 'ATTENDED'
-export type UserRole = 'STUDENT' | 'ADMIN'
+export type UserRole    = 'STUDENT' | 'ADMIN'
+export type Gender      = 'FEMALE' | 'MALE' | 'OTHER' | 'PREFER_NOT_TO_SAY'
 
 export interface User {
-  id: string
-  name: string
-  email: string
-  role: UserRole
+  id:        string
+  name:      string
+  email:     string
+  role:      UserRole
+  gender?:   Gender | null
+  birthDate?: string | null
+}
+
+export interface HealthProfile {
+  id:                    string
+  userId:                string
+  hasSurgeries:          boolean
+  surgeriesDetail:       string | null
+  isPregnant:            boolean
+  pregnancyWeeks:        number | null
+  bloodType:             string | null
+  emergencyContactName:  string | null
+  emergencyContactPhone: string | null
+  allergies:             string | null
+  injuries:              string | null
 }
 
 export interface Booking {

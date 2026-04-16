@@ -12,6 +12,7 @@ import packageRoutes from './routes/packages'
 import paymentRoutes from './routes/payments'
 import pushRoutes from './routes/push'
 import adminRoutes from './routes/admin'
+import profileRoutes from './routes/profile'
 import { errorHandler } from './middleware/errorHandler'
 import { startScheduler } from './services/scheduler'
 
@@ -45,6 +46,7 @@ app.use('/api/packages', packageRoutes)
 app.use('/api/payments', paymentRoutes)
 app.use('/api/push', pushRoutes)
 app.use('/api/admin', adminRoutes)
+app.use('/api/profile', profileRoutes)
 
 // ─── Error handler global (debe ir al final) ──────────────────────────────────
 app.use(errorHandler)

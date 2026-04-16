@@ -9,17 +9,37 @@ datasource db {
 }
 
 model User {
-  id           String        @id @default(cuid())
-  name         String
-  email        String        @unique
-  phone        String?
-  passwordHash String
-  role         Role          @default(STUDENT)
-  pushToken    String?
-  createdAt    DateTime      @default(now())
-  bookings     Booking[]
-  subscription Subscription?
-  payments     Payment[]
+  id            String         @id @default(cuid())
+  name          String
+  email         String         @unique
+  phone         String?
+  passwordHash  String
+  role          Role           @default(STUDENT)
+  pushToken     String?
+  gender        Gender?
+  birthDate     DateTime?
+  createdAt     DateTime       @default(now())
+  bookings      Booking[]
+  subscription  Subscription?
+  payments      Payment[]
+  healthProfile HealthProfile?
+}
+
+model HealthProfile {
+  id                    String   @id @default(cuid())
+  userId                String   @unique
+  hasSurgeries          Boolean  @default(false)
+  surgeriesDetail       String?
+  isPregnant            Boolean  @default(false)
+  pregnancyWeeks        Int?
+  bloodType             String?
+  emergencyContactName  String?
+  emergencyContactPhone String?
+  allergies             String?
+  injuries              String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Class {
@@ -82,6 +102,13 @@ model Payment {
 enum Role {
   STUDENT
   ADMIN
+}
+
+enum Gender {
+  FEMALE
+  MALE
+  OTHER
+  PREFER_NOT_TO_SAY
 }
 
 enum BookingStatus {
