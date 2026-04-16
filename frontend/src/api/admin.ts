@@ -41,8 +41,18 @@ export const adminApi = {
     api.patch(`/api/admin/students/${id}/role`, { role }),
   getPackages: () => api.get('/api/packages'),
 
+  // Alumnas — acciones
+  deleteStudent: (id: string) => api.delete(`/api/admin/students/${id}`),
+  resetStudentPassword: (id: string, newPassword: string) =>
+    api.patch(`/api/admin/students/${id}/password`, { newPassword }),
+
   // Coaches
   getCoaches: () => api.get('/api/admin/coaches'),
+  createCoach: (data: { name: string; email: string; phone?: string; password: string }) =>
+    api.post('/api/admin/coaches', data),
+  updateCoach: (id: string, data: { name?: string; email?: string; phone?: string | null }) =>
+    api.patch(`/api/admin/coaches/${id}`, data),
+  deleteCoach: (id: string) => api.delete(`/api/admin/coaches/${id}`),
 
   // Pagos
   getPayments: (params?: { page?: number; limit?: number; status?: string }) =>

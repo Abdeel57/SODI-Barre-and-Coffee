@@ -15,9 +15,10 @@ const BookingsPage = lazy(() => import('./pages/BookingsPage'))
 const PackagesPage = lazy(() => import('./pages/PackagesPage'))
 const ProfilePage = lazy(() => import('./pages/ProfilePage'))
 const AdminDashboardPage = lazy(() => import('./pages/admin/DashboardPage'))
-const AdminClassesPage = lazy(() => import('./pages/admin/ClassesPage'))
-const AdminStudentsPage = lazy(() => import('./pages/admin/StudentsPage'))
-const AdminPaymentsPage = lazy(() => import('./pages/admin/PaymentsPage'))
+const AdminClassesPage   = lazy(() => import('./pages/admin/ClassesPage'))
+const AdminStudentsPage  = lazy(() => import('./pages/admin/StudentsPage'))
+const AdminPaymentsPage  = lazy(() => import('./pages/admin/PaymentsPage'))
+const AdminCoachesPage   = lazy(() => import('./pages/admin/CoachesPage'))
 const CoachDashboardPage = lazy(() => import('./pages/coach/DashboardPage'))
 const CoachAttendancePage = lazy(() => import('./pages/coach/AttendancePage'))
 
@@ -85,9 +86,10 @@ export default function App() {
           <Route path="/admin" element={<AdminRoute />}>
             <Route index element={<Navigate to="/admin/dashboard" replace />} />
             <Route path="dashboard" element={<AdminDashboardPage />} />
-            <Route path="classes" element={<AdminClassesPage />} />
-            <Route path="students" element={<AdminStudentsPage />} />
-            <Route path="payments" element={<AdminPaymentsPage />} />
+            <Route path="classes"   element={<AdminClassesPage />} />
+            <Route path="students"  element={<AdminStudentsPage />} />
+            <Route path="coaches"   element={<AdminCoachesPage />} />
+            <Route path="payments"  element={<AdminPaymentsPage />} />
           </Route>
 
           {/* Coach */}

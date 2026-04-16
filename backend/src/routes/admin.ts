@@ -1,5 +1,6 @@
 import { Router, Request, Response, NextFunction } from 'express'
 import { z } from 'zod'
+import bcrypt from 'bcryptjs'
 import { prisma } from '../lib/prisma'
 import { auth } from '../middleware/auth'
 import { isAdmin } from '../middleware/isAdmin'
@@ -255,17 +256,174 @@ router.patch(
   },
 )
 
+// ─── DELETE /api/admin/students/:id ──────────────────────────────────────────
+router.delete('/students/:id', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.params['id']
+
+    const user = await prisma.user.findUnique({ where: { id: userId } })
+    if (!user) return next(createError(404, 'Alumna no encontrada'))
+
+    // Guard: no borrar si tiene pagos
+    const paymentCount = await prisma.payment.count({ where: { userId } })
+    if (paymentCount > 0) {
+      return res.status(409).json({ reason: 'HAS_PAYMENTS', paymentCount })
+    }
+
+    await prisma.$transaction([
+      prisma.booking.deleteMany({ where: { userId } }),
+      prisma.subscription.deleteMany({ where: { userId } }),
+      prisma.user.delete({ where: { id: userId } }),
+    ])
+
+    return res.json({ ok: true })
+  } catch (err) {
+    return next(err)
+  }
+})
+
+// ─── PATCH /api/admin/students/:id/password ───────────────────────────────────
+const resetPasswordSchema = z.object({
+  newPassword: z.string().min(8, 'La contraseña debe tener al menos 8 caracteres'),
+})
+
+router.patch('/students/:id/password', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { newPassword } = resetPasswordSchema.parse(req.body)
+    const userId = req.params['id']
+
+    const user = await prisma.user.findUnique({ where: { id: userId } })
+    if (!user) return next(createError(404, 'Alumna no encontrada'))
+
+    const passwordHash = await bcrypt.hash(newPassword, 10)
+    await prisma.user.update({ where: { id: userId }, data: { passwordHash } })
+
+    return res.json({ ok: true })
+  } catch (err) {
+    return next(err)
+  }
+})
+
 // ─── GET /api/admin/coaches ───────────────────────────────────────────────────
 router.get('/coaches', async (_req: Request, res: Response, next: NextFunction) => {
   try {
     const coaches = await prisma.user.findMany({
-      where: { role: { in: ['COACH', 'ADMIN'] } },
-      select: { id: true, name: true, email: true, role: true },
+      where: { role: 'COACH' },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        role: true,
+        createdAt: true,
+        coachClasses: {
+          select: { id: true, name: true, dayOfWeek: true, startTime: true },
+          orderBy: [{ dayOfWeek: 'asc' }, { startTime: 'asc' }],
+        },
+      },
       orderBy: { name: 'asc' },
     })
     res.json({ data: coaches })
   } catch (err) {
     next(err)
+  }
+})
+
+// ─── POST /api/admin/coaches ──────────────────────────────────────────────────
+const createCoachSchema = z.object({
+  name:     z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
+  email:    z.string().email('Email inválido'),
+  phone:    z.string().optional(),
+  password: z.string().min(8, 'La contraseña debe tener al menos 8 caracteres'),
+})
+
+router.post('/coaches', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const body = createCoachSchema.parse(req.body)
+
+    const existing = await prisma.user.findUnique({ where: { email: body.email } })
+    if (existing) return next(createError(409, 'Ya existe un usuario con ese email'))
+
+    const passwordHash = await bcrypt.hash(body.password, 10)
+
+    const coach = await prisma.user.create({
+      data: {
+        name: body.name,
+        email: body.email,
+        phone: body.phone ?? null,
+        passwordHash,
+        role: 'COACH',
+      },
+      select: { id: true, name: true, email: true, phone: true, role: true, createdAt: true },
+    })
+
+    return res.status(201).json(coach)
+  } catch (err) {
+    return next(err)
+  }
+})
+
+// ─── PATCH /api/admin/coaches/:id ─────────────────────────────────────────────
+const updateCoachSchema = z.object({
+  name:  z.string().min(2).optional(),
+  email: z.string().email().optional(),
+  phone: z.string().nullable().optional(),
+})
+
+router.patch('/coaches/:id', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const body = updateCoachSchema.parse(req.body)
+    const coachId = req.params['id']
+
+    const coach = await prisma.user.findUnique({ where: { id: coachId } })
+    if (!coach || coach.role !== 'COACH') return next(createError(404, 'Coach no encontrada'))
+
+    // Validar email único si cambia
+    if (body.email && body.email !== coach.email) {
+      const existing = await prisma.user.findUnique({ where: { email: body.email } })
+      if (existing) return next(createError(409, 'Ya existe un usuario con ese email'))
+    }
+
+    const updated = await prisma.user.update({
+      where: { id: coachId },
+      data: {
+        ...(body.name  !== undefined && { name: body.name }),
+        ...(body.email !== undefined && { email: body.email }),
+        ...(body.phone !== undefined && { phone: body.phone }),
+      },
+      select: { id: true, name: true, email: true, phone: true, role: true, createdAt: true },
+    })
+
+    return res.json(updated)
+  } catch (err) {
+    return next(err)
+  }
+})
+
+// ─── DELETE /api/admin/coaches/:id ────────────────────────────────────────────
+router.delete('/coaches/:id', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const coachId = req.params['id']
+
+    const coach = await prisma.user.findUnique({ where: { id: coachId } })
+    if (!coach || coach.role !== 'COACH') return next(createError(404, 'Coach no encontrada'))
+
+    // Guard: no borrar si tiene pagos
+    const paymentCount = await prisma.payment.count({ where: { userId: coachId } })
+    if (paymentCount > 0) {
+      return res.status(409).json({ reason: 'HAS_PAYMENTS', paymentCount })
+    }
+
+    await prisma.$transaction([
+      prisma.booking.deleteMany({ where: { userId: coachId } }),
+      prisma.subscription.deleteMany({ where: { userId: coachId } }),
+      prisma.user.delete({ where: { id: coachId } }),
+      // Class.coachId se pone en NULL automáticamente (onDelete: SetNull en schema)
+    ])
+
+    return res.json({ ok: true })
+  } catch (err) {
+    return next(err)
   }
 })
 

@@ -60,6 +60,28 @@ export interface AdminStudent {
   } | null
 }
 
+export interface AdminCoachClass {
+  id: string
+  name: string
+  dayOfWeek: number
+  startTime: string
+}
+
+export interface AdminCoach {
+  id: string
+  name: string
+  email: string
+  phone: string | null
+  role: 'COACH'
+  createdAt: string
+  coachClasses: AdminCoachClass[]
+}
+
+export interface DeleteBlockedError {
+  reason: 'HAS_PAYMENTS'
+  paymentCount: number
+}
+
 export interface AdminPayment {
   id: string
   amountMXN: number

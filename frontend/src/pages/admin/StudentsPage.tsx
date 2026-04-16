@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { Search, ChevronDown, ChevronUp } from 'lucide-react'
+import { Search, ChevronDown, ChevronUp, Trash2, KeyRound, Eye, EyeOff } from 'lucide-react'
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { adminApi } from '../../api/admin'
@@ -8,7 +8,7 @@ import { Skeleton } from '../../components/ui/Skeleton'
 import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
 import { BottomSheet } from '../../components/ui/BottomSheet'
-import type { AdminStudent } from '../../types/admin'
+import type { AdminStudent, DeleteBlockedError } from '../../types/admin'
 
 // ─── Role badge helpers ───────────────────────────────────────────────────────
 type DisplayRole = 'STUDENT' | 'COACH'
@@ -49,6 +49,173 @@ function RoleToggle({ studentId, currentRole, onChanged }: RoleToggleProps) {
     >
       {loading ? '...' : currentRole === 'COACH' ? 'Coach' : 'Alumna'}
     </button>
+  )
+}
+
+// ─── Confirm Delete Sheet ─────────────────────────────────────────────────────
+
+function ConfirmDeleteSheet({
+  student,
+  onClose,
+  onDeleted,
+}: {
+  student: AdminStudent
+  onClose: () => void
+  onDeleted: () => void
+}) {
+  const showToast = useStore((s) => s.showToast)
+  const [loading, setLoading]     = useState(false)
+  const [blocked, setBlocked]     = useState<DeleteBlockedError | null>(null)
+
+  async function handleDelete() {
+    setLoading(true)
+    try {
+      await adminApi.deleteStudent(student.id)
+      showToast(`${student.name} eliminada`, 'success')
+      onDeleted()
+    } catch (err: unknown) {
+      const data = (err as { response?: { data?: DeleteBlockedError } })?.response?.data
+      if (data?.reason === 'HAS_PAYMENTS') {
+        setBlocked(data)
+      } else {
+        showToast('Error al eliminar la alumna', 'error')
+      }
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <BottomSheet isOpen={true} onClose={onClose} title="Eliminar alumna">
+      {blocked ? (
+        <div className="flex flex-col gap-4">
+          <div className="px-4 py-3 bg-red-50 border border-red-200 rounded-md">
+            <p className="text-label text-noir font-medium mb-1">No se puede eliminar</p>
+            <p className="text-stone text-[13px]">
+              {student.name} tiene <strong>{blocked.paymentCount}</strong>{' '}
+              {blocked.paymentCount === 1 ? 'pago registrado' : 'pagos registrados'} en el sistema.
+              Para eliminar la cuenta, primero elimina los pagos manualmente desde la base de datos.
+            </p>
+          </div>
+          <Button variant="ghost" size="lg" onClick={onClose} className="w-full">
+            Entendido
+          </Button>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-4">
+          <div className="px-4 py-3 bg-red-50 border border-red-200 rounded-md">
+            <p className="text-label text-noir font-medium mb-1">¿Eliminar a {student.name}?</p>
+            <p className="text-stone text-[13px]">
+              Se eliminarán todas sus reservas y suscripción. Esta acción no se puede deshacer.
+            </p>
+          </div>
+          <div className="flex gap-3">
+            <Button variant="ghost" size="lg" onClick={onClose} className="flex-1">
+              Cancelar
+            </Button>
+            <button
+              onClick={handleDelete}
+              disabled={loading}
+              className="flex-1 py-3 rounded-sm bg-red-600 text-white text-label font-medium disabled:opacity-50 transition-opacity"
+            >
+              {loading ? 'Eliminando…' : 'Sí, eliminar'}
+            </button>
+          </div>
+        </div>
+      )}
+    </BottomSheet>
+  )
+}
+
+// ─── Password Reset Sheet ─────────────────────────────────────────────────────
+
+function PasswordResetSheet({
+  student,
+  onClose,
+}: {
+  student: AdminStudent
+  onClose: () => void
+}) {
+  const showToast   = useStore((s) => s.showToast)
+  const [password,  setPassword]  = useState('')
+  const [confirm,   setConfirm]   = useState('')
+  const [showPwd,   setShowPwd]   = useState(false)
+  const [loading,   setLoading]   = useState(false)
+  const [error,     setError]     = useState('')
+
+  async function handleSave() {
+    if (password.length < 8) {
+      setError('La contraseña debe tener al menos 8 caracteres')
+      return
+    }
+    if (password !== confirm) {
+      setError('Las contraseñas no coinciden')
+      return
+    }
+    setError('')
+    setLoading(true)
+    try {
+      await adminApi.resetStudentPassword(student.id, password)
+      showToast('Contraseña actualizada', 'success')
+      onClose()
+    } catch {
+      showToast('Error al cambiar la contraseña', 'error')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const inputCls = 'w-full border border-nude-border rounded-sm px-4 py-3 text-label text-noir bg-white focus:outline-none focus:border-nude'
+
+  return (
+    <BottomSheet isOpen={true} onClose={onClose} title={`Cambiar contraseña — ${student.name.split(' ')[0]}`}>
+      <div className="flex flex-col gap-4">
+        <p className="text-stone text-[13px]">
+          Establece una nueva contraseña para esta alumna. Compártela con ella de forma segura.
+        </p>
+
+        {/* Nueva contraseña */}
+        <div className="flex flex-col gap-1">
+          <label className="text-label text-stone">Nueva contraseña</label>
+          <div className="relative">
+            <input
+              type={showPwd ? 'text' : 'password'}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Mínimo 8 caracteres"
+              className={inputCls + ' pr-11'}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPwd((v) => !v)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-stone"
+            >
+              {showPwd ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
+          </div>
+        </div>
+
+        {/* Confirmar contraseña */}
+        <div className="flex flex-col gap-1">
+          <label className="text-label text-stone">Confirmar contraseña</label>
+          <input
+            type={showPwd ? 'text' : 'password'}
+            value={confirm}
+            onChange={(e) => setConfirm(e.target.value)}
+            placeholder="Repite la contraseña"
+            className={inputCls}
+          />
+        </div>
+
+        {error && (
+          <p className="text-red-500 text-[12px]">{error}</p>
+        )}
+
+        <Button variant="primary" size="lg" loading={loading} onClick={handleSave} className="w-full">
+          Guardar contraseña
+        </Button>
+      </div>
+    </BottomSheet>
   )
 }
 
@@ -215,10 +382,14 @@ function StudentCard({
   student,
   onAdjust,
   onRoleChanged,
+  onDelete,
+  onPasswordReset,
 }: {
   student: AdminStudent
   onAdjust: (s: AdminStudent) => void
   onRoleChanged: () => void
+  onDelete: (s: AdminStudent) => void
+  onPasswordReset: (s: AdminStudent) => void
 }) {
   const [expanded, setExpanded] = useState(false)
   const sub = student.subscription
@@ -314,9 +485,25 @@ function StudentCard({
             </div>
           )}
 
-          <Button variant="ghost" size="sm" onClick={() => onAdjust(student)}>
-            {sub ? 'Ajustar plan' : '+ Asignar plan'}
-          </Button>
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button variant="ghost" size="sm" onClick={() => onAdjust(student)}>
+              {sub ? 'Ajustar plan' : '+ Asignar plan'}
+            </Button>
+            <button
+              onClick={() => onPasswordReset(student)}
+              className="flex items-center gap-1.5 text-stone text-[12px] px-3 py-1.5 rounded-sm border border-nude-border hover:border-nude transition-colors"
+            >
+              <KeyRound size={13} />
+              Contraseña
+            </button>
+            <button
+              onClick={() => onDelete(student)}
+              className="flex items-center gap-1.5 text-red-500 text-[12px] px-3 py-1.5 rounded-sm border border-red-200 hover:bg-red-50 transition-colors ml-auto"
+            >
+              <Trash2 size={13} />
+              Eliminar
+            </button>
+          </div>
         </div>
       )}
     </div>
@@ -327,10 +514,12 @@ function StudentCard({
 
 export default function AdminStudentsPage() {
   const showToast = useStore((s) => s.showToast)
-  const [students, setStudents] = useState<AdminStudent[]>([])
-  const [loading, setLoading] = useState(true)
-  const [search, setSearch] = useState('')
-  const [editStudent, setEditStudent] = useState<AdminStudent | null>(null)
+  const [students,       setStudents]       = useState<AdminStudent[]>([])
+  const [loading,        setLoading]        = useState(true)
+  const [search,         setSearch]         = useState('')
+  const [editStudent,    setEditStudent]    = useState<AdminStudent | null>(null)
+  const [deleteTarget,   setDeleteTarget]   = useState<AdminStudent | null>(null)
+  const [passwordTarget, setPasswordTarget] = useState<AdminStudent | null>(null)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const fetchStudents = useCallback(async (q: string) => {
@@ -389,6 +578,8 @@ export default function AdminStudentsPage() {
               student={s}
               onAdjust={setEditStudent}
               onRoleChanged={() => fetchStudents(search)}
+              onDelete={setDeleteTarget}
+              onPasswordReset={setPasswordTarget}
             />
           ))}
         </div>
@@ -402,6 +593,24 @@ export default function AdminStudentsPage() {
             setEditStudent(null)
             fetchStudents(search)
           }}
+        />
+      )}
+
+      {deleteTarget && (
+        <ConfirmDeleteSheet
+          student={deleteTarget}
+          onClose={() => setDeleteTarget(null)}
+          onDeleted={() => {
+            setDeleteTarget(null)
+            fetchStudents(search)
+          }}
+        />
+      )}
+
+      {passwordTarget && (
+        <PasswordResetSheet
+          student={passwordTarget}
+          onClose={() => setPasswordTarget(null)}
         />
       )}
     </div>
