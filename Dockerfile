@@ -2,6 +2,11 @@
 FROM node:20-alpine AS frontend-builder
 WORKDIR /frontend
 
+# VITE_ variables son incrustadas en el bundle en tiempo de build
+# Railway las pasa automáticamente como build args
+ARG VITE_VAPID_KEY
+ENV VITE_VAPID_KEY=$VITE_VAPID_KEY
+
 COPY frontend/package*.json ./
 RUN npm ci
 
