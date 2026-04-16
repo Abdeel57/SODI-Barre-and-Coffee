@@ -10,9 +10,6 @@ const fadeUp  = (delay: number, duration = 700) => ({
 const fadeIn  = (delay: number, duration = 600) => ({
   animation: `landingFadeIn ${duration}ms ease-out ${delay}ms both`,
 })
-const scaleFade = (delay: number, duration = 900) => ({
-  animation: `landingScale ${duration}ms ${EASE} ${delay}ms both`,
-})
 const lineExpand = (delay: number, duration = 800) => ({
   animation: `expandLine ${duration}ms ${EASE} ${delay}ms both`,
   transformOrigin: 'center',
