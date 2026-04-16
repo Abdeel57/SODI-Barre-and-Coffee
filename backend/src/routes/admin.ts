@@ -182,10 +182,12 @@ router.get('/students', async (req: Request, res: Response, next: NextFunction) 
 })
 
 // ─── PATCH /api/admin/students/:id/subscription ───────────────────────────────
+// Upsert: crea la suscripción si no existe, la actualiza si ya existe.
 const patchSubscriptionSchema = z.object({
-  classesLeft: z.number().int().min(0).optional(),
-  expiresAt: z.string().datetime().optional(),
-  isActive: z.boolean().optional(),
+  packageId:   z.string().optional(),
+  classesLeft: z.number().int().min(0).optional().nullable(),
+  expiresAt:   z.string().optional(),
+  isActive:    z.boolean().optional(),
 })
 
 router.patch(
@@ -193,25 +195,57 @@ router.patch(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const body = patchSubscriptionSchema.parse(req.body)
+      const userId = req.params['id']
 
-      const subscription = await prisma.subscription.findFirst({
-        where: { userId: req.params['id'] },
-      })
+      // Verificar que el usuario existe
+      const user = await prisma.user.findUnique({ where: { id: userId } })
+      if (!user) return next(createError(404, 'Alumna no encontrada'))
 
-      if (!subscription) {
-        return next(createError(404, 'El alumno no tiene una suscripción'))
+      const existing = await prisma.subscription.findFirst({ where: { userId } })
+
+      if (!existing) {
+        // ── Crear nueva suscripción ─────────────────────────────────────────
+        if (!body.packageId) {
+          return next(createError(400, 'Se requiere un paquete para asignar el plan'))
+        }
+        const pkg = await prisma.package.findUnique({ where: { id: body.packageId } })
+        if (!pkg || !pkg.isActive) return next(createError(404, 'Paquete no encontrado'))
+
+        const expiresAt = body.expiresAt
+          ? new Date(body.expiresAt)
+          : new Date(Date.now() + pkg.validDays * 24 * 60 * 60 * 1000)
+
+        const classesLeft = body.classesLeft !== undefined
+          ? body.classesLeft
+          : pkg.classCount   // null = ilimitado
+
+        const created = await prisma.subscription.create({
+          data: { userId, packageId: pkg.id, classesLeft, expiresAt, isActive: body.isActive ?? true },
+          include: { package: { select: { name: true } } },
+        })
+        return res.status(201).json(created)
       }
 
+      // ── Actualizar suscripción existente ──────────────────────────────────
+      // Si cambia de paquete, recalcular classesLeft desde el nuevo paquete
+      let newClassesLeft = existing.classesLeft
+      if (body.packageId && body.packageId !== existing.packageId) {
+        const pkg = await prisma.package.findUnique({ where: { id: body.packageId } })
+        if (!pkg || !pkg.isActive) return next(createError(404, 'Paquete no encontrado'))
+        newClassesLeft = pkg.classCount
+      }
+      if (body.classesLeft !== undefined) newClassesLeft = body.classesLeft
+
       const updated = await prisma.subscription.update({
-        where: { id: subscription.id },
+        where: { id: existing.id },
         data: {
-          ...(body.classesLeft !== undefined && { classesLeft: body.classesLeft }),
-          ...(body.expiresAt !== undefined && { expiresAt: new Date(body.expiresAt) }),
+          ...(body.packageId  && { packageId: body.packageId }),
+          classesLeft: newClassesLeft,
+          ...(body.expiresAt  && { expiresAt: new Date(body.expiresAt) }),
           ...(body.isActive !== undefined && { isActive: body.isActive }),
         },
         include: { package: { select: { name: true } } },
       })
-
       return res.json(updated)
     } catch (err) {
       return next(err)

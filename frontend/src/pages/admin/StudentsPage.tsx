@@ -10,9 +10,11 @@ import { Input } from '../../components/ui/Input'
 import { BottomSheet } from '../../components/ui/BottomSheet'
 import type { AdminStudent } from '../../types/admin'
 
-// ─── Subscription Edit Sheet ──────────────────────────────────────────────────
+// ─── Assign / Edit Plan Sheet ─────────────────────────────────────────────────
 
-function SubscriptionEditSheet({
+interface PackageOption { id: string; name: string; classCount: number | null; validDays: number }
+
+function AssignPlanSheet({
   student,
   onClose,
   onSaved,
@@ -22,55 +24,131 @@ function SubscriptionEditSheet({
   onSaved: () => void
 }) {
   const showToast = useStore((s) => s.showToast)
-  const sub = student.subscription!
-  const [classesLeft, setClassesLeft] = useState(String(sub.classesLeft ?? ''))
-  const [expiresAt, setExpiresAt] = useState(sub.expiresAt.split('T')[0])
-  const [isActive, setIsActive] = useState(sub.isActive)
-  const [loading, setLoading] = useState(false)
+  const sub       = student.subscription
+  const isNew     = !sub
+
+  const [packages,    setPackages]    = useState<PackageOption[]>([])
+  const [packageId,   setPackageId]   = useState(sub ? '' : '')
+  const [classesLeft, setClassesLeft] = useState(sub ? String(sub.classesLeft ?? '') : '')
+  const [expiresAt,   setExpiresAt]   = useState(sub ? sub.expiresAt.split('T')[0] : '')
+  const [isActive,    setIsActive]    = useState(sub ? sub.isActive : true)
+  const [loading,     setLoading]     = useState(false)
+  const [pkgLoading,  setPkgLoading]  = useState(true)
+
+  // Paquete seleccionado
+  const selectedPkg = packages.find((p) => p.id === packageId) ?? null
+  const isUnlimited = selectedPkg ? selectedPkg.classCount === null : (sub?.classesLeft === null)
+
+  useEffect(() => {
+    adminApi.getPackages()
+      .then((r) => {
+        const pkgs = r.data.data as PackageOption[]
+        setPackages(pkgs)
+        // Pre-seleccionar el paquete actual si ya tiene plan
+        if (sub) {
+          const current = pkgs.find((p) => p.name === sub.packageName)
+          if (current) setPackageId(current.id)
+        }
+      })
+      .catch(() => showToast('Error al cargar paquetes', 'error'))
+      .finally(() => setPkgLoading(false))
+  }, [])
+
+  // Al cambiar paquete, recalcular fechas y clases por defecto
+  function handlePackageChange(id: string) {
+    setPackageId(id)
+    const pkg = packages.find((p) => p.id === id)
+    if (!pkg) return
+    // clases
+    setClassesLeft(pkg.classCount !== null ? String(pkg.classCount) : '')
+    // fecha de vencimiento: hoy + validDays
+    const exp = new Date()
+    exp.setDate(exp.getDate() + pkg.validDays)
+    setExpiresAt(exp.toISOString().split('T')[0])
+  }
 
   async function handleSave() {
+    if (isNew && !packageId) return showToast('Selecciona un paquete', 'error')
     setLoading(true)
     try {
-      const payload: { classesLeft?: number; expiresAt?: string; isActive?: boolean } = {
+      const payload: { packageId?: string; classesLeft?: number | null; expiresAt?: string; isActive?: boolean } = {
         isActive,
-        expiresAt: new Date(expiresAt).toISOString(),
+        expiresAt: expiresAt ? new Date(expiresAt).toISOString() : undefined,
       }
-      if (sub.classesLeft !== null && classesLeft !== '') {
-        payload.classesLeft = parseInt(classesLeft)
-      }
+      if (packageId) payload.packageId = packageId
+      if (!isUnlimited && classesLeft !== '') payload.classesLeft = parseInt(classesLeft)
+      if (isUnlimited) payload.classesLeft = null
+
       await adminApi.updateSubscription(student.id, payload)
-      showToast('Plan actualizado', 'success')
+      showToast(isNew ? 'Plan asignado correctamente' : 'Plan actualizado', 'success')
       onSaved()
     } catch {
-      showToast('Error al actualizar el plan', 'error')
+      showToast('Error al guardar el plan', 'error')
     } finally {
       setLoading(false)
     }
   }
 
+  const fieldCls = 'w-full border border-nude-border rounded-sm px-4 py-3 text-label text-noir bg-white focus:outline-none focus:border-nude appearance-none'
+
   return (
-    <BottomSheet isOpen={true} onClose={onClose} title={`Ajustar plan de ${student.name.split(' ')[0]}`}>
+    <BottomSheet
+      isOpen={true}
+      onClose={onClose}
+      title={isNew ? `Asignar plan a ${student.name.split(' ')[0]}` : `Plan de ${student.name.split(' ')[0]}`}
+    >
       <div className="flex flex-col gap-4">
-        {sub.classesLeft !== null && (
+
+        {/* Selector de paquete */}
+        <div className="flex flex-col gap-1">
+          <label className="text-label text-stone">Paquete</label>
+          {pkgLoading ? (
+            <div className="h-12 bg-nude-border/20 rounded-sm animate-pulse" />
+          ) : (
+            <select
+              value={packageId}
+              onChange={(e) => handlePackageChange(e.target.value)}
+              className={fieldCls}
+            >
+              <option value="">Selecciona un paquete...</option>
+              {packages.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name} — {p.classCount !== null ? `${p.classCount} clases` : 'Ilimitado'} · {p.validDays} días
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
+
+        {/* Clases restantes (solo para paquetes con límite) */}
+        {!isUnlimited && (
           <Input
-            label="Clases restantes"
+            label={isNew ? 'Clases incluidas' : 'Clases restantes'}
             type="number"
             min={0}
             value={classesLeft}
             onChange={(e) => setClassesLeft(e.target.value)}
+            placeholder="Ej: 8"
           />
         )}
+        {isUnlimited && (
+          <div className="px-4 py-3 bg-nude/10 border border-nude-border rounded-sm">
+            <p className="text-stone text-[13px]">Clases: <span className="text-noir font-medium">Ilimitadas</span></p>
+          </div>
+        )}
 
+        {/* Fecha de vencimiento */}
         <div className="flex flex-col gap-1">
           <label className="text-label text-stone">Fecha de vencimiento</label>
           <input
             type="date"
             value={expiresAt}
             onChange={(e) => setExpiresAt(e.target.value)}
-            className="w-full border border-nude-border rounded-sm px-4 py-3 text-label text-noir bg-white focus:outline-none focus:border-nude"
+            className={fieldCls}
           />
         </div>
 
+        {/* Plan activo toggle */}
         <div className="flex items-center justify-between py-2">
           <span className="text-label text-stone">Plan activo</span>
           <button
@@ -81,8 +159,8 @@ function SubscriptionEditSheet({
           </button>
         </div>
 
-        <Button variant="primary" size="lg" loading={loading} onClick={handleSave} className="w-full liquid-glass-strong">
-          Guardar cambios
+        <Button variant="primary" size="lg" loading={loading} onClick={handleSave} className="w-full">
+          {isNew ? 'Asignar plan' : 'Guardar cambios'}
         </Button>
       </div>
     </BottomSheet>
@@ -154,23 +232,40 @@ function StudentCard({
               <p className="text-stone text-xs">Miembro desde</p>
               <p className="text-label text-noir capitalize">{memberSince}</p>
             </div>
+            {student.phone && (
+              <div className="col-span-2">
+                <p className="text-stone text-xs">Teléfono</p>
+                <p className="text-label text-noir">{student.phone}</p>
+              </div>
+            )}
           </div>
-          {sub && (
-            <div className="flex flex-col gap-1 mb-3">
+
+          {sub ? (
+            <div className="flex flex-col gap-1 mb-3 px-3 py-2 bg-nude/10 rounded-sm border border-nude-border">
               <p className="text-label text-stone text-xs">Plan: <span className="text-noir">{sub.packageName}</span></p>
               <p className="text-label text-stone text-xs">
-                Vence:{' '}
-                <span className={`${!sub.isActive ? 'line-through' : 'text-noir'}`}>
-                  {expiresLabel}
+                Clases:{' '}
+                <span className="text-noir">
+                  {sub.classesLeft !== null ? `${sub.classesLeft} restantes` : 'Ilimitadas'}
                 </span>
               </p>
+              <p className="text-label text-stone text-xs">
+                Vence:{' '}
+                <span className={sub.isActive ? 'text-noir' : 'line-through'}>
+                  {expiresLabel}
+                </span>
+                {!sub.isActive && <span className="text-red-400 ml-1">(inactivo)</span>}
+              </p>
+            </div>
+          ) : (
+            <div className="mb-3 px-3 py-2 bg-nude-border/20 rounded-sm">
+              <p className="text-stone text-xs">Sin plan activo</p>
             </div>
           )}
-          {sub && (
-            <Button variant="ghost" size="sm" onClick={() => onAdjust(student)}>
-              Ajustar plan
-            </Button>
-          )}
+
+          <Button variant="ghost" size="sm" onClick={() => onAdjust(student)}>
+            {sub ? 'Ajustar plan' : '+ Asignar plan'}
+          </Button>
         </div>
       )}
     </div>
@@ -244,7 +339,7 @@ export default function AdminStudentsPage() {
       )}
 
       {editStudent && (
-        <SubscriptionEditSheet
+        <AssignPlanSheet
           student={editStudent}
           onClose={() => setEditStudent(null)}
           onSaved={() => {

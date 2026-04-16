@@ -34,8 +34,9 @@ export const adminApi = {
     api.get('/api/admin/students', { params }),
   updateSubscription: (
     id: string,
-    data: { classesLeft?: number; expiresAt?: string; isActive?: boolean },
+    data: { packageId?: string; classesLeft?: number | null; expiresAt?: string; isActive?: boolean },
   ) => api.patch(`/api/admin/students/${id}/subscription`, data),
+  getPackages: () => api.get('/api/packages'),
 
   // Pagos
   getPayments: (params?: { page?: number; limit?: number; status?: string }) =>
