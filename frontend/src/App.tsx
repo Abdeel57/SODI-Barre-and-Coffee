@@ -1,6 +1,7 @@
 import { ReactNode, Suspense, lazy } from 'react'
 import { Routes, Route, Navigate, Outlet } from 'react-router-dom'
 import { useAuth } from './hooks/useAuth'
+import { useStore } from './store/useStore'
 import { Toast } from './components/ui/Toast'
 import { BottomNav } from './components/BottomNav'
 import { AdminLayout } from './components/admin/AdminLayout'
@@ -8,7 +9,8 @@ import { CoachLayout } from './components/coach/CoachLayout'
 import { Skeleton } from './components/ui/Skeleton'
 
 // ── Lazy pages ─────────────────────────────────────────────────────────────────
-const LoginPage = lazy(() => import('./pages/LoginPage'))
+const LandingPage    = lazy(() => import('./pages/LandingPage'))
+const LoginPage      = lazy(() => import('./pages/LoginPage'))
 const RegisterPage = lazy(() => import('./pages/RegisterPage'))
 const SchedulePage = lazy(() => import('./pages/SchedulePage'))
 const BookingsPage = lazy(() => import('./pages/BookingsPage'))
@@ -65,6 +67,15 @@ function CoachRoute() {
   return <CoachLayout />
 }
 
+// ── Smart redirect — manda a cada rol a su sección, landing si no hay sesión ───
+function SmartRedirect() {
+  const user = useStore((s) => s.user)
+  if (!user) return <LandingPage />
+  if (user.role === 'ADMIN') return <Navigate to="/admin/dashboard" replace />
+  if (user.role === 'COACH') return <Navigate to="/coach/dashboard" replace />
+  return <Navigate to="/schedule" replace />
+}
+
 // ── App ────────────────────────────────────────────────────────────────────────
 export default function App() {
   return (
@@ -75,8 +86,8 @@ export default function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
 
-          {/* Student */}
-          <Route path="/" element={<Navigate to="/schedule" replace />} />
+          {/* Inicio — redirige según rol o muestra landing */}
+          <Route path="/" element={<SmartRedirect />} />
           <Route path="/schedule" element={<PrivateRoute><SchedulePage /></PrivateRoute>} />
           <Route path="/bookings" element={<PrivateRoute><BookingsPage /></PrivateRoute>} />
           <Route path="/packages" element={<PrivateRoute><PackagesPage /></PrivateRoute>} />
