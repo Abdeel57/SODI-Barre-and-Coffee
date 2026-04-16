@@ -4,6 +4,8 @@ import { useAuth } from './hooks/useAuth'
 import { useStore } from './store/useStore'
 import { Toast } from './components/ui/Toast'
 import { BottomNav } from './components/BottomNav'
+import { InstallBanner } from './components/InstallBanner'
+import { NotificationPrompt } from './components/NotificationPrompt'
 import { AdminLayout } from './components/admin/AdminLayout'
 import { CoachLayout } from './components/coach/CoachLayout'
 import { Skeleton } from './components/ui/Skeleton'
@@ -118,6 +120,8 @@ export default function App() {
 
       <Toast />
       <BottomNav />
+      <InstallBanner />
+      <NotificationPrompt />
       <OnboardingOverlay />
     </>
   )

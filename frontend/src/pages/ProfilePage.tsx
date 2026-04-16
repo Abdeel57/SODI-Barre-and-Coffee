@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Bell, LogOut, Package, Calendar, Heart, KeyRound, ChevronRight } from 'lucide-react'
+import { Bell, LogOut, Package, Calendar, Heart, KeyRound, ChevronRight, Smartphone } from 'lucide-react'
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { clsx } from 'clsx'
@@ -216,6 +216,11 @@ export default function ProfilePage() {
 
   const initial = user?.name?.charAt(0).toUpperCase() ?? '?'
 
+  // Detect if app is running as installed PWA
+  const isAppInstalled =
+    window.matchMedia('(display-mode: standalone)').matches ||
+    (navigator as Navigator & { standalone?: boolean }).standalone === true
+
   // ── Health summary text ───────────────────────────────────────────────────
   const healthSummary = health
     ? [
@@ -333,24 +338,52 @@ export default function ProfilePage() {
       <div className="mt-6">
         <p className="text-section text-stone text-[10px] uppercase tracking-widest px-6 mb-2">CUENTA</p>
 
-        <button
-          className="flex items-center gap-3 px-6 py-4 border-b border-nude-border w-full tap-target"
-          onClick={handleTogglePush}
-          disabled={pushLoading}
-        >
-          <Bell size={20} strokeWidth={1.5} className="text-nude shrink-0" />
-          <span className="text-label flex-1 text-left">Notificaciones</span>
-          <Toggle on={permission === 'granted'} />
-        </button>
+        {/* ── Notifications — smart state ───────────────────────────── */}
+        {!isAppInstalled ? (
+          // Not in standalone — guide them to install first
+          <div className="flex items-start gap-3 px-6 py-4 border-b border-nude-border">
+            <Smartphone size={20} strokeWidth={1.5} className="text-stone shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="text-label text-noir">Notificaciones</p>
+              <p className="text-stone text-[11px] mt-0.5 leading-relaxed">
+                Instala la app en tu inicio y ábrela desde ahí para activar notificaciones.
+              </p>
+            </div>
+          </div>
+        ) : permission === 'denied' ? (
+          // Explicitly denied — send to OS settings
+          <div className="flex items-start gap-3 px-6 py-4 border-b border-nude-border">
+            <Bell size={20} strokeWidth={1.5} className="text-stone shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="text-label text-noir">Notificaciones</p>
+              <p className="text-stone text-[11px] mt-0.5 leading-relaxed">
+                Bloqueadas — ve a <strong>Ajustes → SODI Barre</strong> para habilitarlas.
+              </p>
+            </div>
+          </div>
+        ) : (
+          // Standalone + not denied (default or granted) — show toggle
+          <>
+            <button
+              className="flex items-center gap-3 px-6 py-4 border-b border-nude-border w-full tap-target"
+              onClick={handleTogglePush}
+              disabled={pushLoading}
+            >
+              <Bell size={20} strokeWidth={1.5} className="text-nude shrink-0" />
+              <span className="text-label flex-1 text-left">Notificaciones</span>
+              <Toggle on={permission === 'granted'} />
+            </button>
 
-        {permission === 'granted' && (
-          <button
-            className="flex items-center gap-3 px-6 py-3 border-b border-nude-border w-full tap-target"
-            onClick={sendTestPush}
-          >
-            <Bell size={16} strokeWidth={1.5} className="text-stone shrink-0" />
-            <span className="text-label text-stone text-[13px] flex-1 text-left">Enviar notificación de prueba</span>
-          </button>
+            {permission === 'granted' && (
+              <button
+                className="flex items-center gap-3 px-6 py-3 border-b border-nude-border w-full tap-target"
+                onClick={sendTestPush}
+              >
+                <Bell size={16} strokeWidth={1.5} className="text-stone shrink-0" />
+                <span className="text-label text-stone text-[13px] flex-1 text-left">Enviar notificación de prueba</span>
+              </button>
+            )}
+          </>
         )}
 
         <ProfileRow
