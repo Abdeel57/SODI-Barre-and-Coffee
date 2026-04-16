@@ -18,6 +18,7 @@ model User {
   pushToken     String?
   gender        Gender?
   birthDate     DateTime?
+  onboardingCompleted Boolean        @default(false)
   createdAt     DateTime       @default(now())
   bookings      Booking[]
   subscription  Subscription?

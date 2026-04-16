@@ -75,7 +75,7 @@ router.post('/register', async (req: Request, res: Response, next: NextFunction)
         gender:       body.gender,
         birthDate:    body.birthDate ? new Date(body.birthDate) : undefined,
       },
-      select: { id: true, name: true, email: true, role: true },
+      select: { id: true, name: true, email: true, role: true, onboardingCompleted: true },
     })
 
     const { accessToken, refreshToken } = generateTokens({
@@ -124,7 +124,7 @@ router.post('/login', async (req: Request, res: Response, next: NextFunction) =>
     res.cookie(COOKIE_NAME, refreshToken, cookieOptions())
 
     return res.json({
-      user: { id: user.id, name: user.name, email: user.email, role: user.role },
+      user: { id: user.id, name: user.name, email: user.email, role: user.role, onboardingCompleted: user.onboardingCompleted },
       accessToken,
     })
   } catch (err) {
@@ -180,6 +180,7 @@ router.get('/me', auth, async (req: Request, res: Response, next: NextFunction) 
         email: true,
         phone: true,
         role: true,
+        onboardingCompleted: true,
         createdAt: true,
         subscription: {
           select: {

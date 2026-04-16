@@ -80,4 +80,18 @@ router.put('/password', auth, async (req: Request, res: Response, next: NextFunc
   }
 })
 
+// ─── PATCH /api/profile/onboarding ───────────────────────────────────────────
+// Marks the tutorial as completed for this user (server-side, device-independent)
+router.patch('/onboarding', auth, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    await prisma.user.update({
+      where: { id: req.user!.id },
+      data:  { onboardingCompleted: true },
+    })
+    return res.json({ ok: true })
+  } catch (err) {
+    return next(err)
+  }
+})
+
 export default router

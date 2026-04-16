@@ -148,8 +148,9 @@ export const pushApi = {
 }
 
 export const profileApi = {
-  getHealth:      ()                        => api.get('/api/profile/health'),
-  updateHealth:   (data: HealthProfileData) => api.put('/api/profile/health', data),
-  updatePassword: (data: { currentPassword: string; newPassword: string }) =>
+  getHealth:          ()                        => api.get('/api/profile/health'),
+  updateHealth:       (data: HealthProfileData) => api.put('/api/profile/health', data),
+  updatePassword:     (data: { currentPassword: string; newPassword: string }) =>
     api.put('/api/profile/password', data),
+  completeOnboarding: ()                        => api.patch('/api/profile/onboarding'),
 }

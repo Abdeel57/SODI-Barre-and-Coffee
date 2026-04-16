@@ -18,10 +18,9 @@ interface Store {
   isAdmin: () => boolean
 
   // ── Onboarding ────────────────────────────────────────────────────────
-  pendingOnboarding: boolean    // true only after new registration — triggers the tutorial
-  onboardingCompleted: boolean  // true once the tutorial is done/skipped — never shows again
-  triggerOnboarding: () => void
-  setOnboardingCompleted: () => void
+  // Stored server-side on User.onboardingCompleted.
+  // This method updates the local copy optimistically after the API call.
+  markOnboardingComplete: () => void
 
   // ── UI ────────────────────────────────────────────────────────────────
   toast: Toast | null
@@ -40,10 +39,10 @@ export const useStore = create<Store>()(
       isAdmin: () => get().user?.role === 'ADMIN',
 
       // ── Onboarding ──────────────────────────────────────────────────
-      pendingOnboarding: false,
-      onboardingCompleted: false,
-      triggerOnboarding: () => set({ pendingOnboarding: true }),
-      setOnboardingCompleted: () => set({ onboardingCompleted: true, pendingOnboarding: false }),
+      markOnboardingComplete: () =>
+        set((s) => ({
+          user: s.user ? { ...s.user, onboardingCompleted: true } : null,
+        })),
 
       // ── UI ──────────────────────────────────────────────────────────
       toast: null,
@@ -55,8 +54,6 @@ export const useStore = create<Store>()(
       partialize: (state) => ({
         user: state.user,
         accessToken: state.accessToken,
-        pendingOnboarding: state.pendingOnboarding,
-        onboardingCompleted: state.onboardingCompleted,
       }),
     },
   ),

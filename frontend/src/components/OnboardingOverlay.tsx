@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import type { ReactNode } from 'react'
 import { X, Calendar, BookOpen, CreditCard, User, Check } from 'lucide-react'
 import { useStore } from '../store/useStore'
+import { profileApi } from '../api'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type StepId =
@@ -110,8 +111,6 @@ function IOSShareIcon() {
 }
 
 // ─── SVG Spotlight backdrop ───────────────────────────────────────────────────
-// For nav steps: punches a transparent hole over the target element so the
-// real UI shows through. For center cards: solid dark overlay.
 function SpotlightBackdrop({ rect }: { rect: DOMRect | null }) {
   const W = window.innerWidth
   const H = window.innerHeight
@@ -133,7 +132,6 @@ function SpotlightBackdrop({ rect }: { rect: DOMRect | null }) {
 
   return (
     <>
-      {/* SVG dark backdrop with transparent cutout */}
       <svg
         style={{ position: 'fixed', inset: 0, zIndex: 59, display: 'block', pointerEvents: 'all' }}
         width={W}
@@ -146,7 +144,7 @@ function SpotlightBackdrop({ rect }: { rect: DOMRect | null }) {
           </mask>
         </defs>
         <rect width={W} height={H} fill="rgba(13,13,13,0.75)" mask="url(#sodi-tour-mask)" />
-        {/* Amber highlight ring around the spotlight */}
+        {/* Amber highlight ring */}
         <rect
           x={rx - 1.5} y={ry - 1.5}
           width={rw + 3} height={rh + 3}
@@ -156,31 +154,21 @@ function SpotlightBackdrop({ rect }: { rect: DOMRect | null }) {
           strokeWidth={1.5}
         />
       </svg>
-      {/* Invisible blocker over spotlight hole to prevent accidental nav taps */}
+      {/* Invisible tap blocker over the spotlight hole */}
       <div
         style={{
-          position: 'fixed',
-          left: rx, top: ry,
+          position: 'fixed', left: rx, top: ry,
           width: rw, height: rh,
-          borderRadius: 13,
-          zIndex: 60,
-          pointerEvents: 'all',
+          borderRadius: 13, zIndex: 60, pointerEvents: 'all',
         }}
       />
     </>
   )
 }
 
-// ─── Tooltip card — floats above the spotlit nav item ─────────────────────────
+// ─── Tooltip card ─────────────────────────────────────────────────────────────
 function TooltipCard({
-  rect,
-  stepId,
-  stepIndex,
-  totalSteps,
-  isLast,
-  onNext,
-  onComplete,
-  animKey,
+  rect, stepId, stepIndex, totalSteps, isLast, onNext, onComplete, animKey,
 }: {
   rect: DOMRect
   stepId: StepId
@@ -198,26 +186,19 @@ function TooltipCard({
   const centerX    = rect.left + rect.width / 2
   const left       = Math.max(16, Math.min(centerX - TOOLTIP_W / 2, window.innerWidth - TOOLTIP_W - 16))
   const arrowLeft  = Math.max(8, Math.min(centerX - left - 8, TOOLTIP_W - 24))
-  // Position tooltip above the nav bar
   const bottomPx   = window.innerHeight - rect.top + 14
-
-  const progressPct = totalSteps > 1 ? ((stepIndex) / (totalSteps - 1)) * 100 : 100
+  const progressPct = totalSteps > 1 ? (stepIndex / (totalSteps - 1)) * 100 : 100
 
   return (
     <div
       key={animKey}
       style={{
-        position: 'fixed',
-        bottom: bottomPx,
-        left,
-        width: TOOLTIP_W,
-        zIndex: 62,
+        position: 'fixed', bottom: bottomPx, left,
+        width: TOOLTIP_W, zIndex: 62,
         animation: 'landingFadeUp 0.35s cubic-bezier(0.22,1,0.36,1) both',
       }}
     >
-      {/* Card */}
       <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
-        {/* Progress bar */}
         <div className="h-0.5 bg-nude-border">
           <div
             className="h-full bg-nude transition-all duration-500"
@@ -226,7 +207,6 @@ function TooltipCard({
         </div>
 
         <div className="px-4 pt-3.5 pb-3 flex flex-col gap-3">
-          {/* Icon + text */}
           <div className="flex items-start gap-3">
             <div className="w-8 h-8 rounded-lg bg-nude-light flex items-center justify-center shrink-0 mt-0.5">
               {content.icon}
@@ -241,7 +221,6 @@ function TooltipCard({
             </div>
           </div>
 
-          {/* Actions */}
           <div className="flex items-center justify-between">
             <button
               onClick={onComplete}
@@ -262,11 +241,8 @@ function TooltipCard({
       {/* Downward arrow */}
       <div
         style={{
-          position: 'absolute',
-          bottom: -8,
-          left: arrowLeft,
-          width: 0,
-          height: 0,
+          position: 'absolute', bottom: -8, left: arrowLeft,
+          width: 0, height: 0,
           borderLeft: '8px solid transparent',
           borderRight: '8px solid transparent',
           borderTop: '8px solid white',
@@ -277,19 +253,10 @@ function TooltipCard({
   )
 }
 
-// ─── Center card — welcome / install / done ───────────────────────────────────
+// ─── Center card ──────────────────────────────────────────────────────────────
 function CenterCard({
-  step,
-  userName,
-  stepIndex,
-  totalSteps,
-  isLast,
-  deferredPrompt,
-  onInstallAndroid,
-  onNext,
-  onComplete,
-  animKey,
-  closing,
+  step, userName, stepIndex, totalSteps, isLast,
+  deferredPrompt, onInstallAndroid, onNext, onComplete, animKey, closing,
 }: {
   step: StepId
   userName: string
@@ -303,12 +270,11 @@ function CenterCard({
   animKey: number
   closing: boolean
 }) {
-  const firstName       = userName.split(' ')[0]
+  const firstName        = userName.split(' ')[0]
   const isAndroidInstall = step === 'install-android' && !!deferredPrompt
-
   const nextLabel =
-    isLast               ? '¡Empezar!'      :
-    step === 'install-ios' ? 'Ya la agregué →' :
+    isLast               ? '¡Empezar!'        :
+    step === 'install-ios' ? 'Ya la agregué →'  :
     'Siguiente →'
 
   return (
@@ -330,7 +296,6 @@ function CenterCard({
       >
         <div className="bg-white/85 rounded-2xl p-6 flex flex-col gap-5">
 
-          {/* Top bar: dots + close */}
           <div className="flex items-center justify-between">
             <ProgressDots total={totalSteps} current={stepIndex} />
             <button
@@ -342,7 +307,6 @@ function CenterCard({
             </button>
           </div>
 
-          {/* Step content */}
           <div key={animKey} style={{ animation: 'landingFadeUp 0.4s cubic-bezier(0.22,1,0.36,1) both' }}>
 
             {step === 'welcome' && (
@@ -373,14 +337,12 @@ function CenterCard({
                 </div>
                 <div className="w-full flex flex-col gap-2 text-left">
                   {[
-                    { n: 1, text: <>Toca el ícono <b className="text-noir">compartir</b> (□↑) en la barra de Safari</> },
+                    { n: 1, text: <>Toca el ícono <b className="text-noir">compartir</b> (□↑) en Safari</> },
                     { n: 2, text: <>Toca <b className="text-noir">"Agregar a pantalla de inicio"</b></> },
                     { n: 3, text: <>Confirma tocando <b className="text-noir">"Agregar"</b></> },
                   ].map(({ n, text }) => (
                     <div key={n} className="flex items-start gap-3 px-3 py-2 bg-nude-light rounded-md">
-                      <span className="w-5 h-5 rounded-full bg-nude text-white text-[11px] font-medium flex items-center justify-center shrink-0 mt-0.5">
-                        {n}
-                      </span>
+                      <span className="w-5 h-5 rounded-full bg-nude text-white text-[11px] font-medium flex items-center justify-center shrink-0 mt-0.5">{n}</span>
                       <p className="text-[12px] text-stone leading-relaxed font-body">{text}</p>
                     </div>
                   ))}
@@ -399,18 +361,13 @@ function CenterCard({
                   <span className="text-xl">📲</span>
                 </div>
                 <div className="flex flex-col gap-2">
-                  <h2 className="font-display text-[22px] font-light text-noir leading-tight">
-                    Instala la app
-                  </h2>
+                  <h2 className="font-display text-[22px] font-light text-noir leading-tight">Instala la app</h2>
                   <p className="text-stone text-[13px] leading-relaxed font-body">
                     Para recibir notificaciones instala SODI Barre en tu teléfono.
                   </p>
                 </div>
                 {deferredPrompt ? (
-                  <button
-                    onClick={onInstallAndroid}
-                    className="w-full py-3 rounded-sm bg-noir text-white text-label tracking-wide active:scale-95 transition-transform"
-                  >
+                  <button onClick={onInstallAndroid} className="w-full py-3 rounded-sm bg-noir text-white text-label tracking-wide active:scale-95 transition-transform">
                     Instalar app
                   </button>
                 ) : (
@@ -421,9 +378,7 @@ function CenterCard({
                       { n: 3, text: <>Confirma tocando <b className="text-noir">"Agregar"</b></> },
                     ].map(({ n, text }) => (
                       <div key={n} className="flex items-start gap-3 px-3 py-2 bg-nude-light rounded-md">
-                        <span className="w-5 h-5 rounded-full bg-nude text-white text-[11px] font-medium flex items-center justify-center shrink-0 mt-0.5">
-                          {n}
-                        </span>
+                        <span className="w-5 h-5 rounded-full bg-nude text-white text-[11px] font-medium flex items-center justify-center shrink-0 mt-0.5">{n}</span>
                         <p className="text-[12px] text-stone leading-relaxed font-body">{text}</p>
                       </div>
                     ))}
@@ -438,9 +393,7 @@ function CenterCard({
                   <Check size={28} strokeWidth={2} className="text-nude-dark" />
                 </div>
                 <div className="flex flex-col gap-2">
-                  <h2 className="font-display text-[26px] font-light text-noir leading-tight">
-                    ¡Todo listo!
-                  </h2>
+                  <h2 className="font-display text-[26px] font-light text-noir leading-tight">¡Todo listo!</h2>
                   <p className="text-stone text-[13px] leading-relaxed font-body">
                     Ya conoces lo esencial. ¡Nos vemos en clase!
                   </p>
@@ -450,7 +403,6 @@ function CenterCard({
 
           </div>
 
-          {/* Actions */}
           <div
             key={`a-${animKey}`}
             className="flex flex-col gap-2"
@@ -483,9 +435,7 @@ function CenterCard({
 // ─── Main overlay ─────────────────────────────────────────────────────────────
 export default function OnboardingOverlay() {
   const user                   = useStore((s) => s.user)
-  const pendingOnboarding      = useStore((s) => s.pendingOnboarding)
-  const onboardingCompleted    = useStore((s) => s.onboardingCompleted)
-  const setOnboardingCompleted = useStore((s) => s.setOnboardingCompleted)
+  const markOnboardingComplete = useStore((s) => s.markOnboardingComplete)
 
   const [stepIndex,      setStepIndex]      = useState(0)
   const [steps,          setSteps]          = useState<StepDef[]>([])
@@ -501,12 +451,12 @@ export default function OnboardingOverlay() {
     setSteps(buildSteps(isStandalone, isIOS, isAndroid))
   }, [])
 
-  // Show overlay only when triggered after registration
+  // Trigger: user is a new student (server flag = false), on any device
   useEffect(() => {
-    if (!user || user.role !== 'STUDENT' || onboardingCompleted || !pendingOnboarding || steps.length === 0) return
-    const t = setTimeout(() => setVisible(true), 500)
+    if (user?.role !== 'STUDENT' || user?.onboardingCompleted !== false || steps.length === 0) return
+    const t = setTimeout(() => setVisible(true), 600)
     return () => clearTimeout(t)
-  }, [user, onboardingCompleted, pendingOnboarding, steps])
+  }, [user?.id, user?.onboardingCompleted, steps.length])
 
   // Capture Android install prompt
   useEffect(() => {
@@ -518,31 +468,46 @@ export default function OnboardingOverlay() {
     return () => window.removeEventListener('beforeinstallprompt', handler)
   }, [])
 
-  // Measure spotlight target whenever step changes
+  // Measure spotlight target when step changes
+  // Retries once after 200ms to handle cases where BottomNav hasn't painted yet
   useEffect(() => {
     if (!visible || steps.length === 0) return
-    const currentStep = steps[stepIndex]
-    if (!currentStep?.tutorialTarget) {
-      setSpotlightRect(null)
-      return
-    }
+    const target = steps[stepIndex]?.tutorialTarget
+    if (!target) { setSpotlightRect(null); return }
+
+    let retryTimer: ReturnType<typeof setTimeout> | null = null
+
     const measure = () => {
-      const el = document.querySelector(`[data-tutorial="${currentStep.tutorialTarget}"]`)
-      if (el) setSpotlightRect(el.getBoundingClientRect())
+      const el = document.querySelector(`[data-tutorial="${target}"]`)
+      if (el) {
+        setSpotlightRect(el.getBoundingClientRect())
+      } else {
+        // Element not in DOM yet — retry after one paint cycle
+        retryTimer = setTimeout(() => {
+          const el2 = document.querySelector(`[data-tutorial="${target}"]`)
+          if (el2) setSpotlightRect(el2.getBoundingClientRect())
+        }, 200)
+      }
     }
+
     measure()
     window.addEventListener('resize', measure)
-    return () => window.removeEventListener('resize', measure)
+    return () => {
+      window.removeEventListener('resize', measure)
+      if (retryTimer) clearTimeout(retryTimer)
+    }
   }, [stepIndex, steps, visible])
 
   const complete = useCallback(() => {
     setClosing(true)
     setTimeout(() => {
-      setOnboardingCompleted()
+      // Persist to server (fire-and-forget), then update local store
+      profileApi.completeOnboarding().catch(() => null)
+      markOnboardingComplete()
       setVisible(false)
       setClosing(false)
     }, 260)
-  }, [setOnboardingCompleted])
+  }, [markOnboardingComplete])
 
   const next = useCallback(() => {
     if (stepIndex >= steps.length - 1) { complete(); return }
@@ -558,20 +523,19 @@ export default function OnboardingOverlay() {
     next()
   }, [deferredPrompt, next])
 
-  if (!visible || !user || user.role !== 'STUDENT' || onboardingCompleted || !pendingOnboarding || steps.length === 0) {
+  // Guard: only render when visible and user qualifies
+  if (!visible || !user || user.role !== 'STUDENT' || user.onboardingCompleted !== false || steps.length === 0) {
     return null
   }
 
-  const currentStep   = steps[stepIndex]
-  const isLast        = stepIndex === steps.length - 1
-  const isSpotlight   = !!currentStep.tutorialTarget
+  const currentStep = steps[stepIndex]
+  const isLast      = stepIndex === steps.length - 1
+  const isSpotlight = !!currentStep.tutorialTarget
 
   return (
     <>
-      {/* Backdrop — solid for center steps, SVG cutout for spotlight steps */}
       <SpotlightBackdrop rect={isSpotlight ? spotlightRect : null} />
 
-      {/* Center card for welcome / install / done */}
       {!isSpotlight && (
         <CenterCard
           step={currentStep.id}
@@ -588,7 +552,6 @@ export default function OnboardingOverlay() {
         />
       )}
 
-      {/* Tooltip card for spotlight / nav steps */}
       {isSpotlight && spotlightRect && (
         <TooltipCard
           rect={spotlightRect}

@@ -87,10 +87,9 @@ function StepIndicator({ current }: { current: number }) {
 
 // ─── Página principal ─────────────────────────────────────────────────────────
 export default function RegisterPage() {
-  const navigate          = useNavigate()
-  const setAuth           = useStore((s) => s.setAuth)
-  const showToast         = useStore((s) => s.showToast)
-  const triggerOnboarding = useStore((s) => s.triggerOnboarding)
+  const navigate  = useNavigate()
+  const setAuth   = useStore((s) => s.setAuth)
+  const showToast = useStore((s) => s.showToast)
 
   const [step, setStep]       = useState(1)
   const [loading, setLoading] = useState(false)
@@ -179,7 +178,6 @@ export default function RegisterPage() {
     } else {
       showToast('¡Bienvenida!', 'success')
     }
-    triggerOnboarding()
     navigate('/schedule', { replace: true })
   }
 

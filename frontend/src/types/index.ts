@@ -76,12 +76,13 @@ export interface AttendanceData {
 }
 
 export interface User {
-  id:        string
-  name:      string
-  email:     string
-  role:      UserRole
-  gender?:   Gender | null
-  birthDate?: string | null
+  id:                   string
+  name:                 string
+  email:                string
+  role:                 UserRole
+  onboardingCompleted:  boolean
+  gender?:              Gender | null
+  birthDate?:           string | null
 }
 
 export interface HealthProfile {
