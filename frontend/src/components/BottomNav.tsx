@@ -20,8 +20,8 @@ export function BottomNav() {
   const user = useStore((s) => s.user)
   const { pathname } = useLocation()
 
-  // Hide on admin routes or when not authenticated
-  if (!user || pathname.startsWith('/admin')) return null
+  // Hide on admin/coach routes or when not authenticated
+  if (!user || pathname.startsWith('/admin') || pathname.startsWith('/coach')) return null
 
   return (
     <nav
