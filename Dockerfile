@@ -17,6 +17,9 @@ RUN npm run build
 FROM node:20-alpine AS backend-builder
 WORKDIR /app
 
+# OpenSSL requerido por Prisma en Alpine
+RUN apk add --no-cache openssl
+
 COPY backend/package*.json ./
 COPY backend/prisma ./prisma/
 RUN npm ci
@@ -31,6 +34,9 @@ RUN npm run build
 # ── Stage 3: Production runner ─────────────────────────────────────────────────
 FROM node:20-alpine AS runner
 WORKDIR /app
+
+# OpenSSL requerido por Prisma en runtime
+RUN apk add --no-cache openssl
 
 ENV NODE_ENV=production
 
