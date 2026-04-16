@@ -161,39 +161,89 @@
 
 /* ── Keyframes ──────────────────────────────────────────────────────────── */
 @keyframes shimmer {
-  from {
-    background-position: 200% center;
-  }
-  to {
-    background-position: -200% center;
-  }
+  from { background-position: 200% center; }
+  to   { background-position: -200% center; }
 }
 
 @keyframes pageIn {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0);   }
 }
 
 @keyframes sheetUp {
-  from {
-    transform: translateY(100%);
-  }
-  to {
-    transform: translateY(0);
-  }
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0);   }
 }
 
 @keyframes sheetDown {
-  from {
-    transform: translateY(0);
-  }
-  to {
-    transform: translateY(100%);
-  }
+  from { transform: translateY(0);   }
+  to   { transform: translateY(100%); }
+}
+
+/* Used by BottomSheet overlay */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes fadeOut {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+
+/* ── Landing entrance ────────────────────────────────────────────────────── */
+@keyframes landingFadeUp {
+  from { opacity: 0; transform: translateY(28px); }
+  to   { opacity: 1; transform: translateY(0);    }
+}
+
+@keyframes landingFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes landingScale {
+  from { opacity: 0; transform: scale(0.94) translateY(16px); }
+  to   { opacity: 1; transform: scale(1)    translateY(0);    }
+}
+
+@keyframes expandLine {
+  from { transform: scaleX(0); opacity: 0; }
+  to   { transform: scaleX(1); opacity: 1; }
+}
+
+/* ── Ambient floating orbs ───────────────────────────────────────────────── */
+@keyframes floatOrbA {
+  0%,  100% { transform: translate(0px,   0px);   opacity: 0.55; }
+  20%        { transform: translate(22px, -30px);  opacity: 0.75; }
+  40%        { transform: translate(-8px, -18px);  opacity: 0.45; }
+  60%        { transform: translate(-20px, 14px);  opacity: 0.65; }
+  80%        { transform: translate(12px,  24px);  opacity: 0.50; }
+}
+
+@keyframes floatOrbB {
+  0%,  100% { transform: translate(0px,    0px);  opacity: 0.40; }
+  25%        { transform: translate(-28px,  22px); opacity: 0.60; }
+  50%        { transform: translate(18px,  -20px); opacity: 0.30; }
+  75%        { transform: translate(-10px,  8px);  opacity: 0.50; }
+}
+
+@keyframes floatOrbC {
+  0%,  100% { transform: translate(0px,    0px);  opacity: 0.25; }
+  33%        { transform: translate(16px,   26px); opacity: 0.40; }
+  66%        { transform: translate(-22px, -16px); opacity: 0.20; }
+}
+
+/* ── Particle drift ──────────────────────────────────────────────────────── */
+@keyframes particleRise {
+  0%   { opacity: 0;    transform: translateY(0)    scale(1);   }
+  15%  { opacity: 0.6;                                          }
+  85%  { opacity: 0.3;                                          }
+  100% { opacity: 0;    transform: translateY(-80px) scale(0.6); }
+}
+
+/* ── Shimmer sweep on logo ───────────────────────────────────────────────── */
+@keyframes logoShimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position:  200% center; }
 }
