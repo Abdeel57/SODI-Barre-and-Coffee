@@ -40,8 +40,8 @@ async function sendPush(pushToken: string, userId: string, payload: PushPayload)
     )
   } catch (err: unknown) {
     const error = err as { statusCode?: number }
-    // Token expirado o inválido — eliminar de DB
-    if (error.statusCode === 410 || error.statusCode === 404) {
+    // Token expirado, inválido o VAPID mismatch — eliminar de DB
+    if (error.statusCode === 410 || error.statusCode === 404 || error.statusCode === 403) {
       await prisma.user.update({
         where: { id: userId },
         data: { pushToken: null },

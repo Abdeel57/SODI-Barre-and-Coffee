@@ -42,6 +42,10 @@ export function usePush() {
         return
       }
 
+      // Desuscribir suscripción anterior si existe (por si cambió la clave VAPID)
+      const existing = await registration.pushManager.getSubscription()
+      if (existing) await existing.unsubscribe()
+
       const subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(vapidKey),

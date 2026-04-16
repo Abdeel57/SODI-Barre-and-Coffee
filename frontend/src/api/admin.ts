@@ -51,4 +51,5 @@ export const adminApi = {
   // Push
   sendPush: (data: { target: 'all' | 'inactive'; title: string; body: string }) =>
     api.post('/api/push/send', data),
+  clearPushTokens: () => api.delete('/api/admin/push-tokens'),
 }

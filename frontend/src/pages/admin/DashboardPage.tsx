@@ -112,6 +112,7 @@ function PushModal({ onClose }: { onClose: () => void }) {
   const [title, setTitle] = useState('')
   const [body, setBody] = useState('')
   const [loading, setLoading] = useState(false)
+  const [clearing, setClearing] = useState(false)
 
   async function handleSend() {
     if (!title.trim() || !body.trim()) return
@@ -125,6 +126,19 @@ function PushModal({ onClose }: { onClose: () => void }) {
       showToast('Error al enviar notificación', 'error')
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function handleClearTokens() {
+    setClearing(true)
+    try {
+      const res = await adminApi.clearPushTokens()
+      const { cleared } = res.data as { cleared: number }
+      showToast(`${cleared} suscripciones eliminadas — las alumnas deben re-activar notificaciones`, 'success')
+    } catch {
+      showToast('Error al limpiar suscripciones', 'error')
+    } finally {
+      setClearing(false)
     }
   }
 
@@ -180,6 +194,19 @@ function PushModal({ onClose }: { onClose: () => void }) {
       >
         Enviar notificación
       </Button>
+
+      <div className="border-t border-nude-border pt-3">
+        <p className="text-stone text-xs mb-2">Si cambiaste las claves VAPID, limpia las suscripciones antiguas:</p>
+        <Button
+          variant="ghost"
+          size="sm"
+          loading={clearing}
+          onClick={handleClearTokens}
+          className="w-full text-stone"
+        >
+          Limpiar suscripciones inválidas
+        </Button>
+      </div>
     </div>
   )
 }

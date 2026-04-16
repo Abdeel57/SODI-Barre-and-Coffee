@@ -455,4 +455,18 @@ router.get('/payments', async (req: Request, res: Response, next: NextFunction) 
   }
 })
 
+// ─── DELETE /api/admin/push-tokens ───────────────────────────────────────────
+// Limpia todos los push tokens almacenados (usar cuando cambian las claves VAPID)
+router.delete('/push-tokens', async (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { count } = await prisma.user.updateMany({
+      where: { pushToken: { not: null } },
+      data: { pushToken: null },
+    })
+    res.json({ cleared: count })
+  } catch (err) {
+    next(err)
+  }
+})
+
 export default router
