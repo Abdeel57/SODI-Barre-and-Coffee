@@ -73,6 +73,7 @@ model Booking {
 model Package {
   id            String         @id @default(cuid())
   name          String
+  description   String?
   classCount    Int?           // null = ilimitado
   validDays     Int
   priceMXN      Float

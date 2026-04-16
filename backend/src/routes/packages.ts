@@ -15,6 +15,7 @@ router.get('/', async (_req: Request, res: Response, next: NextFunction) => {
     const data = packages.map((pkg) => ({
       id: pkg.id,
       name: pkg.name,
+      description: pkg.description ?? null,
       classCount: pkg.classCount,
       validDays: pkg.validDays,
       priceMXN: pkg.priceMXN,

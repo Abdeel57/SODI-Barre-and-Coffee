@@ -38,15 +38,13 @@ async function main() {
 
   // ─── Paquetes ──────────────────────────────────────────────────────────────
   const packages = await Promise.all([
-    prisma.package.create({
-      data: { name: '4 Clases', classCount: 4, validDays: 30, priceMXN: 680, isActive: true },
-    }),
-    prisma.package.create({
-      data: { name: '8 Clases', classCount: 8, validDays: 45, priceMXN: 1200, isActive: true },
-    }),
-    prisma.package.create({
-      data: { name: 'Ilimitado', classCount: null, validDays: 30, priceMXN: 1800, isActive: true },
-    }),
+    prisma.package.create({ data: { id: 'pkg_prueba',     name: 'Clase de Prueba',     description: 'Tu primera clase en SODI Barre',                     classCount: 1,  validDays: 30, priceMXN: 180,  isActive: true } }),
+    prisma.package.create({ data: { id: 'pkg_valoracion', name: 'Clase de Valoración', description: 'Para embarazadas, con lesiones o más de 69 años',    classCount: 1,  validDays: 30, priceMXN: 150,  isActive: true } }),
+    prisma.package.create({ data: { id: 'pkg_suelta',     name: 'Clase Suelta',                                                                           classCount: 1,  validDays: 30, priceMXN: 200,  isActive: true } }),
+    prisma.package.create({ data: { id: 'pkg_4clases',    name: '4 Clases',                                                                               classCount: 4,  validDays: 30, priceMXN: 600,  isActive: true } }),
+    prisma.package.create({ data: { id: 'pkg_8clases',    name: '8 Clases',                                                                               classCount: 8,  validDays: 30, priceMXN: 1000, isActive: true } }),
+    prisma.package.create({ data: { id: 'pkg_12clases',   name: '12 Clases',                                                                              classCount: 12, validDays: 30, priceMXN: 1200, isActive: true } }),
+    prisma.package.create({ data: { id: 'pkg_20clases',   name: '20 Clases',                                                                              classCount: 20, validDays: 30, priceMXN: 1600, isActive: true } }),
   ])
   console.log(`✅ ${packages.length} paquetes creados`)
 
@@ -73,7 +71,7 @@ async function main() {
   console.log(`✅ 2 usuarios creados (admin: ${admin.email}, alumna: ${student.email})`)
 
   // ─── Suscripción para la alumna ────────────────────────────────────────────
-  const packageDe4 = packages[0]
+  const packageDe4 = packages[3] // 4 Clases
   const expiresAt = new Date()
   expiresAt.setDate(expiresAt.getDate() + 30)
 

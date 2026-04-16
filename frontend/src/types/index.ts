@@ -32,6 +32,7 @@ export interface Subscription {
 export interface Package {
   id: string
   name: string
+  description: string | null
   classCount: number | null
   validDays: number
   priceMXN: number
