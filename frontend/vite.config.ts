@@ -6,6 +6,9 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.ts',
       registerType: 'autoUpdate',
       includeAssets: ['LOGOSODI.png', 'icons/*.png'],
       manifest: {
@@ -30,36 +33,8 @@ export default defineConfig({
           { src: 'icons/icon-512-maskable.png',   sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
       },
-      workbox: {
-        runtimeCaching: [
-          {
-            urlPattern: /\/api\/classes\/week/,
-            handler: 'StaleWhileRevalidate',
-            options: {
-              cacheName: 'classes-week-cache',
-              expiration: { maxAgeSeconds: 60 * 60 },
-              cacheableResponse: { statuses: [0, 200] },
-            },
-          },
-          {
-            urlPattern: /\/api\/bookings\/me/,
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'my-bookings-cache',
-              networkTimeoutSeconds: 5,
-              cacheableResponse: { statuses: [0, 200] },
-            },
-          },
-          {
-            urlPattern: /\/api\/packages/,
-            handler: 'StaleWhileRevalidate',
-            options: {
-              cacheName: 'packages-cache',
-              expiration: { maxAgeSeconds: 60 * 60 * 6 },
-              cacheableResponse: { statuses: [0, 200] },
-            },
-          },
-        ],
+      injectManifest: {
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
       },
     }),
   ],
