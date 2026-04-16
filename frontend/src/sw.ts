@@ -20,11 +20,10 @@ self.addEventListener('push', (event) => {
 
   const title = payload.title ?? 'SODI Barre & Coffee'
   const options: NotificationOptions = {
-    body:    payload.body ?? '',
-    icon:    '/icons/icon-192.png',
-    badge:   '/icons/icon-96.png',
-    data:    payload.data ?? {},
-    vibrate: [200, 100, 200],
+    body:  payload.body ?? '',
+    icon:  '/icons/icon-192.png',
+    badge: '/icons/icon-96.png',
+    data:  payload.data ?? {},
   }
 
   event.waitUntil(self.registration.showNotification(title, options))
