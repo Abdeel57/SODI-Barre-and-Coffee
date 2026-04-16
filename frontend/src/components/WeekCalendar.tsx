@@ -1,12 +1,19 @@
+import { ChevronDown } from 'lucide-react'
 import { clsx } from 'clsx'
 
 interface WeekCalendarProps {
   selectedDate: Date
   onSelectDate: (date: Date) => void
   hasClasses?: (date: Date) => boolean
+  onOpenMonthPicker?: () => void
 }
 
 const SHORT_DAYS = ['DOM', 'LUN', 'MAR', 'MIÉ', 'JUE', 'VIE', 'SÁB']
+
+const MONTH_SHORT = [
+  'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun',
+  'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic',
+]
 
 function getWeekDays(base: Date): Date[] {
   const day = base.getDay()
@@ -29,18 +36,39 @@ function isSameDay(a: Date, b: Date) {
   )
 }
 
-export function WeekCalendar({ selectedDate, onSelectDate, hasClasses }: WeekCalendarProps) {
+export function WeekCalendar({ selectedDate, onSelectDate, hasClasses, onOpenMonthPicker }: WeekCalendarProps) {
   const today = new Date()
-  const week = getWeekDays(selectedDate)
+  const week  = getWeekDays(selectedDate)
 
   return (
-    <div className="liquid-glass rounded-xl px-2 py-3">
+    <div className="liquid-glass rounded-xl px-2 pb-3 pt-1.5">
+      {/* Month / year label — tapping opens month picker */}
+      <button
+        onClick={onOpenMonthPicker}
+        disabled={!onOpenMonthPicker}
+        className={clsx(
+          'flex items-center gap-1 px-1 pb-1 pt-0.5',
+          onOpenMonthPicker
+            ? 'text-stone hover:text-noir transition-colors tap-target'
+            : 'text-stone cursor-default',
+        )}
+        aria-label="Abrir selector de mes"
+      >
+        <span className="text-label text-[11px] tracking-wide font-body">
+          {MONTH_SHORT[selectedDate.getMonth()]} {selectedDate.getFullYear()}
+        </span>
+        {onOpenMonthPicker && (
+          <ChevronDown size={12} strokeWidth={2} className="opacity-60" />
+        )}
+      </button>
+
+      {/* Week days row */}
       <div className="flex overflow-x-auto no-scrollbar gap-1">
         {week.map((day) => {
           const isSelected = isSameDay(day, selectedDate)
-          const isToday = isSameDay(day, today)
-          const dow = day.getDay()
-          const showDot = hasClasses ? hasClasses(day) : dow !== 0
+          const isToday    = isSameDay(day, today)
+          const dow        = day.getDay()
+          const showDot    = hasClasses ? hasClasses(day) : dow !== 0
 
           return (
             <button

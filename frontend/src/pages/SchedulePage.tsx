@@ -3,6 +3,7 @@ import { WifiOff, CalendarX } from 'lucide-react'
 import { useStore } from '../store/useStore'
 import { useSchedule } from '../hooks/useSchedule'
 import { WeekCalendar } from '../components/WeekCalendar'
+import { MonthCalendarSheet } from '../components/MonthCalendarSheet'
 import { ClassCard } from '../components/ClassCard'
 import { ClassDetailSheet } from '../components/ClassDetailSheet'
 import { Skeleton } from '../components/ui/Skeleton'
@@ -36,8 +37,9 @@ function SkeletonCard() {
 
 export default function SchedulePage() {
   const user = useStore((s) => s.user)
-  const [selectedDate, setSelectedDate] = useState(new Date())
-  const [isTransitioning, setIsTransitioning] = useState(false)
+  const [selectedDate,      setSelectedDate]      = useState(new Date())
+  const [isTransitioning,   setIsTransitioning]   = useState(false)
+  const [showMonthPicker,   setShowMonthPicker]   = useState(false)
 
   const {
     week,
@@ -109,6 +111,7 @@ export default function SchedulePage() {
           selectedDate={selectedDate}
           onSelectDate={handleSelectDate}
           hasClasses={hasClasses}
+          onOpenMonthPicker={() => setShowMonthPicker(true)}
         />
       </div>
 
@@ -197,6 +200,15 @@ export default function SchedulePage() {
         onBook={handleBook}
         onCancel={handleCancel}
         onClose={() => setBookingSlot(null)}
+      />
+
+      {/* Month calendar picker */}
+      <MonthCalendarSheet
+        isOpen={showMonthPicker}
+        onClose={() => setShowMonthPicker(false)}
+        selectedDate={selectedDate}
+        onSelectDate={handleSelectDate}
+        hasClasses={hasClasses}
       />
     </div>
   )
