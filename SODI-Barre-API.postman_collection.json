@@ -1,0 +1,581 @@
+{
+  "info": {
+    "_postman_id": "sodi-barre-api-collection",
+    "name": "SODI Barre API",
+    "description": "Colección completa para probar la API de SODI Barre & Coffee",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000", "type": "string" },
+    { "key": "accessToken", "value": "", "type": "string" },
+    { "key": "adminToken", "value": "", "type": "string" },
+    { "key": "bookingId", "value": "", "type": "string" },
+    { "key": "classId_sabado", "value": "", "type": "string" },
+    { "key": "preferenceId", "value": "", "type": "string" },
+    { "key": "studentId", "value": "", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "0 – Health",
+      "item": [
+        {
+          "name": "GET /health",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/health"
+          }
+        }
+      ]
+    },
+    {
+      "name": "1 – Auth",
+      "item": [
+        {
+          "name": "Register nuevo usuario",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const r = pm.response.json();",
+                  "if (r.accessToken) {",
+                  "  pm.collectionVariables.set('accessToken', r.accessToken);",
+                  "  console.log('accessToken guardado');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/auth/register",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"María González\",\n  \"email\": \"maria@ejemplo.com\",\n  \"phone\": \"6641234567\",\n  \"password\": \"Contraseña123\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Login – Alumna de prueba",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const r = pm.response.json();",
+                  "if (r.accessToken) {",
+                  "  pm.collectionVariables.set('accessToken', r.accessToken);",
+                  "  console.log('accessToken de alumna guardado');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"alumna@test.com\",\n  \"password\": \"Test2024#\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Login – Admin",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const r = pm.response.json();",
+                  "if (r.accessToken) {",
+                  "  pm.collectionVariables.set('adminToken', r.accessToken);",
+                  "  console.log('adminToken guardado');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@estudio.com\",\n  \"password\": \"Admin2024#\"\n}"
+            }
+          }
+        },
+        {
+          "name": "GET /auth/me",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": "{{baseUrl}}/api/auth/me"
+          }
+        },
+        {
+          "name": "POST /auth/refresh",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/auth/refresh"
+          }
+        },
+        {
+          "name": "POST /auth/logout",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/auth/logout"
+          }
+        },
+        {
+          "name": "[Error] Login – credenciales incorrectas",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"alumna@test.com\",\n  \"password\": \"WrongPassword\"\n}"
+            }
+          }
+        },
+        {
+          "name": "[Error] Sin token → 401",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/auth/me"
+          }
+        }
+      ]
+    },
+    {
+      "name": "2 – Clases",
+      "item": [
+        {
+          "name": "GET /classes/week – semana actual",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const r = pm.response.json();",
+                  "if (r.week) {",
+                  "  // Guarda el classId del Sábado para las pruebas de booking",
+                  "  const sabado = r.week.find(d => d.dayOfWeek === 6);",
+                  "  if (sabado && sabado.classes.length > 0) {",
+                  "    pm.collectionVariables.set('classId_sabado', sabado.classes[0].classId);",
+                  "    console.log('classId_sabado:', sabado.classes[0].classId);",
+                  "  }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/classes/week?date=2026-04-15",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "classes", "week"],
+              "query": [{ "key": "date", "value": "2026-04-15" }]
+            }
+          }
+        },
+        {
+          "name": "GET /classes/week – semana siguiente",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/classes/week?date=2026-04-22",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "classes", "week"],
+              "query": [{ "key": "date", "value": "2026-04-22" }]
+            }
+          }
+        },
+        {
+          "name": "GET /classes – todas activas",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": "{{baseUrl}}/api/classes"
+          }
+        }
+      ]
+    },
+    {
+      "name": "3 – Reservas",
+      "item": [
+        {
+          "name": "POST /bookings – Barre Avanzado Sábado 19 abril",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const r = pm.response.json();",
+                  "if (r.id) {",
+                  "  pm.collectionVariables.set('bookingId', r.id);",
+                  "  console.log('bookingId guardado:', r.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/api/bookings",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"classId\": \"{{classId_sabado}}\",\n  \"date\": \"2026-04-19\"\n}"
+            }
+          }
+        },
+        {
+          "name": "GET /bookings/me – mis reservas",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": "{{baseUrl}}/api/bookings/me"
+          }
+        },
+        {
+          "name": "GET /bookings/me – solo CONFIRMED",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/bookings/me?status=CONFIRMED",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "bookings", "me"],
+              "query": [{ "key": "status", "value": "CONFIRMED" }]
+            }
+          }
+        },
+        {
+          "name": "DELETE /bookings/:id – cancelar reserva",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": "{{baseUrl}}/api/bookings/{{bookingId}}"
+          }
+        },
+        {
+          "name": "[Error] POST /bookings – día incorrecto → 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/api/bookings",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"classId\": \"{{classId_sabado}}\",\n  \"date\": \"2026-04-17\"\n}"
+            }
+          }
+        },
+        {
+          "name": "[Error] POST /bookings – sin suscripción activa → 403",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/api/bookings",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"classId\": \"{{classId_sabado}}\",\n  \"date\": \"2026-04-19\"\n}"
+            }
+          }
+        },
+        {
+          "name": "[Error] DELETE /bookings/:id – no es tuya → 403",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": "{{baseUrl}}/api/bookings/{{bookingId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "4 – Paquetes",
+      "item": [
+        {
+          "name": "GET /packages – lista pública",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/packages"
+          }
+        },
+        {
+          "name": "GET /packages/my-subscription",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": "{{baseUrl}}/api/packages/my-subscription"
+          }
+        }
+      ]
+    },
+    {
+      "name": "5 – Pagos (MercadoPago)",
+      "item": [
+        {
+          "name": "POST /payments/create-preference",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const r = pm.response.json();",
+                  "if (r.preferenceId) {",
+                  "  pm.collectionVariables.set('preferenceId', r.preferenceId);",
+                  "  console.log('preferenceId:', r.preferenceId);",
+                  "  console.log('URL de pago:', r.initPoint);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/api/payments/create-preference",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"packageId\": \"REEMPLAZA_CON_ID_DEL_PAQUETE\"\n}"
+            },
+            "description": "Genera una URL de MercadoPago para completar el pago. Requiere MP_ACCESS_TOKEN real en .env"
+          }
+        },
+        {
+          "name": "POST /payments/webhook – simulado (type≠payment → 200)",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/api/payments/webhook?type=other&data.id=123",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "payments", "webhook"],
+              "query": [
+                { "key": "type", "value": "other" },
+                { "key": "data.id", "value": "123" }
+              ]
+            },
+            "description": "Simula un webhook de tipo distinto — siempre debe responder 200"
+          }
+        },
+        {
+          "name": "GET /payments/history",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": "{{baseUrl}}/api/payments/history"
+          }
+        },
+        {
+          "name": "GET /payments/status/:mpPaymentId",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": "{{baseUrl}}/api/payments/status/{{preferenceId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "6 – Push Notifications",
+      "item": [
+        {
+          "name": "POST /push/subscribe",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/api/push/subscribe",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"endpoint\": \"https://fcm.googleapis.com/fcm/send/ejemplo\",\n  \"keys\": {\n    \"p256dh\": \"clave_publica_ejemplo\",\n    \"auth\": \"clave_auth_ejemplo\"\n  }\n}"
+            }
+          }
+        },
+        {
+          "name": "POST /push/send – a todos (admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/api/push/send",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"target\": \"all\",\n  \"title\": \"Aviso SODI\",\n  \"body\": \"Nueva clase disponible este sábado!\"\n}"
+            }
+          }
+        },
+        {
+          "name": "DELETE /push/unsubscribe",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": "{{baseUrl}}/api/push/unsubscribe"
+          }
+        }
+      ]
+    },
+    {
+      "name": "7 – Admin",
+      "item": [
+        {
+          "name": "GET /admin/dashboard",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": "{{baseUrl}}/api/admin/dashboard"
+          }
+        },
+        {
+          "name": "GET /admin/students",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const r = pm.response.json();",
+                  "if (r.data && r.data.length > 0) {",
+                  "  pm.collectionVariables.set('studentId', r.data[0].id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/students?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "students"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /admin/students – buscar",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/students?search=alumna",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "students"],
+              "query": [{ "key": "search", "value": "alumna" }]
+            }
+          }
+        },
+        {
+          "name": "PATCH /admin/students/:id/subscription",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/api/admin/students/{{studentId}}/subscription",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"classesLeft\": 8,\n  \"isActive\": true\n}"
+            }
+          }
+        },
+        {
+          "name": "GET /admin/classes",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": "{{baseUrl}}/api/admin/classes"
+          }
+        },
+        {
+          "name": "POST /admin/classes – nueva clase",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/api/admin/classes",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Barre Express\",\n  \"instructor\": \"Camila Torres\",\n  \"dayOfWeek\": 3,\n  \"startTime\": \"18:00\",\n  \"durationMin\": 45,\n  \"maxCapacity\": 8\n}"
+            }
+          }
+        },
+        {
+          "name": "PATCH /admin/classes/:id – desactivar",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/api/admin/classes/REEMPLAZA_CON_CLASS_ID",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"isActive\": false\n}"
+            }
+          }
+        },
+        {
+          "name": "GET /admin/payments",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/payments?status=APPROVED",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "payments"],
+              "query": [{ "key": "status", "value": "APPROVED" }]
+            }
+          }
+        },
+        {
+          "name": "[Error] Admin sin token → 403",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": "{{baseUrl}}/api/admin/dashboard",
+            "description": "Usar el token de alumna — debe responder 403"
+          }
+        }
+      ]
+    }
+  ]
+}

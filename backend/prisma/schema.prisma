@@ -1,0 +1,96 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String        @id @default(cuid())
+  name         String
+  email        String        @unique
+  phone        String?
+  passwordHash String
+  role         Role          @default(STUDENT)
+  pushToken    String?
+  createdAt    DateTime      @default(now())
+  bookings     Booking[]
+  subscription Subscription?
+  payments     Payment[]
+}
+
+model Class {
+  id          String    @id @default(cuid())
+  name        String
+  instructor  String
+  dayOfWeek   Int       // 0=Dom 1=Lun ... 6=Sáb
+  startTime   String    // "09:00"
+  durationMin Int       @default(55)
+  maxCapacity Int       @default(12)
+  isActive    Boolean   @default(true)
+  bookings    Booking[]
+}
+
+model Booking {
+  id        String        @id @default(cuid())
+  userId    String
+  classId   String
+  date      DateTime
+  status    BookingStatus @default(CONFIRMED)
+  createdAt DateTime      @default(now())
+  user      User          @relation(fields: [userId], references: [id])
+  class     Class         @relation(fields: [classId], references: [id])
+
+  @@unique([userId, classId, date])
+}
+
+model Package {
+  id            String         @id @default(cuid())
+  name          String
+  classCount    Int?           // null = ilimitado
+  validDays     Int
+  priceMXN      Float
+  isActive      Boolean        @default(true)
+  subscriptions Subscription[]
+}
+
+model Subscription {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  packageId   String
+  classesLeft Int?     // null = ilimitado
+  expiresAt   DateTime
+  isActive    Boolean  @default(true)
+  user        User     @relation(fields: [userId], references: [id])
+  package     Package  @relation(fields: [packageId], references: [id])
+}
+
+model Payment {
+  id          String        @id @default(cuid())
+  userId      String
+  packageId   String
+  amountMXN   Float
+  mpPaymentId String        @unique
+  status      PaymentStatus @default(PENDING)
+  createdAt   DateTime      @default(now())
+  user        User          @relation(fields: [userId], references: [id])
+}
+
+enum Role {
+  STUDENT
+  ADMIN
+}
+
+enum BookingStatus {
+  CONFIRMED
+  CANCELLED
+  ATTENDED
+}
+
+enum PaymentStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
