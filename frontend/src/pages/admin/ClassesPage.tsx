@@ -5,7 +5,7 @@ import { Skeleton } from '../../components/ui/Skeleton'
 import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
 import { BottomSheet } from '../../components/ui/BottomSheet'
-import type { AdminClass } from '../../types/admin'
+import type { AdminClass, CoachUser } from '../../types/admin'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -43,15 +43,17 @@ const DEFAULT_FORM: FormState = {
 }
 
 function ClassFormSheet({
-  isOpen, editClass, onClose, onSaved,
+  isOpen, editClass, coaches, onClose, onSaved,
 }: {
   isOpen: boolean
   editClass: AdminClass | null
+  coaches: CoachUser[]
   onClose: () => void
   onSaved: () => void
 }) {
   const showToast = useStore((s) => s.showToast)
   const [form, setForm] = useState<FormState>(DEFAULT_FORM)
+  const [coachId, setCoachId] = useState<string>('')
   const [errors, setErrors] = useState<FormErrors>({})
   const [loading, setLoading] = useState(false)
 
@@ -65,8 +67,10 @@ function ClassFormSheet({
         durationMin: editClass.durationMin,
         maxCapacity: editClass.maxCapacity,
       })
+      setCoachId(editClass.coachId ?? '')
     } else {
       setForm(DEFAULT_FORM)
+      setCoachId('')
     }
     setErrors({})
   }, [editClass, isOpen])
@@ -91,6 +95,7 @@ function ClassFormSheet({
         startTime: form.startTime,
         durationMin: form.durationMin,
         maxCapacity: form.maxCapacity,
+        coachId: coachId || null,
       }
       if (editClass) {
         await adminApi.updateClass(editClass.id, payload)
@@ -167,6 +172,21 @@ function ClassFormSheet({
           />
         </div>
 
+        {/* Coach selector */}
+        <div className="flex flex-col gap-1">
+          <label className="text-label text-stone">Coach asignada</label>
+          <select
+            value={coachId}
+            onChange={(e) => setCoachId(e.target.value)}
+            className="w-full border border-nude-border rounded-sm px-4 py-3 text-label bg-white text-noir focus:outline-none focus:border-nude appearance-none"
+          >
+            <option value="">Sin asignar</option>
+            {coaches.map((c) => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+        </div>
+
         <Button variant="primary" size="lg" loading={loading} onClick={handleSubmit} className="w-full liquid-glass-strong mt-1">
           Guardar clase
         </Button>
@@ -201,6 +221,9 @@ function AdminClassCard({ cls, onEdit, onToggle }: {
           <p className="text-stone text-xs mt-0.5">
             {formatTime(cls.startTime)} · {cls.durationMin} min · {cls.instructor}
           </p>
+          {cls.coachName && (
+            <p className="text-stone text-[11px] mt-0.5">Coach: {cls.coachName}</p>
+          )}
         </div>
         <div className="text-right shrink-0">
           <p className="text-label text-stone text-xs">{cls.maxCapacity} cupos</p>
@@ -224,14 +247,19 @@ function AdminClassCard({ cls, onEdit, onToggle }: {
 export default function AdminClassesPage() {
   const showToast = useStore((s) => s.showToast)
   const [classes, setClasses] = useState<AdminClass[]>([])
+  const [coaches, setCoaches] = useState<CoachUser[]>([])
   const [loading, setLoading] = useState(true)
   const [formOpen, setFormOpen] = useState(false)
   const [editClass, setEditClass] = useState<AdminClass | null>(null)
 
   const fetchClasses = useCallback(async () => {
     try {
-      const r = await adminApi.getClasses()
-      setClasses(r.data.data as AdminClass[])
+      const [classRes, coachRes] = await Promise.all([
+        adminApi.getClasses(),
+        adminApi.getCoaches(),
+      ])
+      setClasses(classRes.data.data as AdminClass[])
+      setCoaches(coachRes.data.data as CoachUser[])
     } catch {
       showToast('Error al cargar clases', 'error')
     } finally {
@@ -296,6 +324,7 @@ export default function AdminClassesPage() {
       <ClassFormSheet
         isOpen={formOpen}
         editClass={editClass}
+        coaches={coaches}
         onClose={() => setFormOpen(false)}
         onSaved={handleSaved}
       />

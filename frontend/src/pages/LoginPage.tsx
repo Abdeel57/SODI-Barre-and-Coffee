@@ -24,7 +24,8 @@ export default function LoginPage() {
       const res = await authApi.login({ email, password })
       const { user, accessToken } = res.data as { user: User; accessToken: string }
       setAuth(user, accessToken)
-      navigate(user.role === 'ADMIN' ? '/admin/dashboard' : '/schedule', { replace: true })
+      const dest = user.role === 'ADMIN' ? '/admin/dashboard' : user.role === 'COACH' ? '/coach/dashboard' : '/schedule'
+      navigate(dest, { replace: true })
     } catch (err) {
       const error = err as AxiosError<{ error: string }>
       const message = error.response?.data?.error ?? 'Error al iniciar sesión'

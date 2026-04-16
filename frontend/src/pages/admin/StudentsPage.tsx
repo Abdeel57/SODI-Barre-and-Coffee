@@ -10,6 +10,48 @@ import { Input } from '../../components/ui/Input'
 import { BottomSheet } from '../../components/ui/BottomSheet'
 import type { AdminStudent } from '../../types/admin'
 
+// ─── Role badge helpers ───────────────────────────────────────────────────────
+type DisplayRole = 'STUDENT' | 'COACH'
+
+interface RoleToggleProps {
+  studentId: string
+  currentRole: DisplayRole
+  onChanged: () => void
+}
+
+function RoleToggle({ studentId, currentRole, onChanged }: RoleToggleProps) {
+  const showToast = useStore((s) => s.showToast)
+  const [loading, setLoading] = useState(false)
+
+  async function toggle() {
+    const next: DisplayRole = currentRole === 'STUDENT' ? 'COACH' : 'STUDENT'
+    setLoading(true)
+    try {
+      await adminApi.setUserRole(studentId, next)
+      showToast(next === 'COACH' ? 'Rol actualizado a Coach' : 'Rol actualizado a Estudiante', 'success')
+      onChanged()
+    } catch {
+      showToast('Error al cambiar el rol', 'error')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <button
+      onClick={toggle}
+      disabled={loading}
+      className={`text-[10px] px-2 py-0.5 rounded-full border transition-colors ${
+        currentRole === 'COACH'
+          ? 'bg-nude-light text-nude-dark border-nude'
+          : 'bg-white text-stone border-nude-border hover:border-nude'
+      }`}
+    >
+      {loading ? '...' : currentRole === 'COACH' ? 'Coach' : 'Alumna'}
+    </button>
+  )
+}
+
 // ─── Assign / Edit Plan Sheet ─────────────────────────────────────────────────
 
 interface PackageOption { id: string; name: string; classCount: number | null; validDays: number }
@@ -172,9 +214,11 @@ function AssignPlanSheet({
 function StudentCard({
   student,
   onAdjust,
+  onRoleChanged,
 }: {
   student: AdminStudent
   onAdjust: (s: AdminStudent) => void
+  onRoleChanged: () => void
 }) {
   const [expanded, setExpanded] = useState(false)
   const sub = student.subscription
@@ -212,6 +256,13 @@ function StudentCard({
             </span>
           ) : (
             <span className="text-stone text-xs">Sin plan</span>
+          )}
+          {(student.role === 'STUDENT' || student.role === 'COACH') && (
+            <RoleToggle
+              studentId={student.id}
+              currentRole={student.role === 'COACH' ? 'COACH' : 'STUDENT'}
+              onChanged={onRoleChanged}
+            />
           )}
           {expanded ? (
             <ChevronUp size={14} className="text-stone" />
@@ -333,7 +384,12 @@ export default function AdminStudentsPage() {
       ) : (
         <div>
           {students.map((s) => (
-            <StudentCard key={s.id} student={s} onAdjust={setEditStudent} />
+            <StudentCard
+              key={s.id}
+              student={s}
+              onAdjust={setEditStudent}
+              onRoleChanged={() => fetchStudents(search)}
+            />
           ))}
         </div>
       )}

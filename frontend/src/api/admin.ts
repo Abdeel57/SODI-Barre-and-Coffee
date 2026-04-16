@@ -24,6 +24,7 @@ export const adminApi = {
       durationMin: number
       maxCapacity: number
       isActive: boolean
+      coachId: string | null
     }>,
   ) => api.patch(`/api/admin/classes/${id}`, data),
   toggleClass: (id: string, isActive: boolean) =>
@@ -36,7 +37,12 @@ export const adminApi = {
     id: string,
     data: { packageId?: string; classesLeft?: number | null; expiresAt?: string; isActive?: boolean },
   ) => api.patch(`/api/admin/students/${id}/subscription`, data),
+  setUserRole: (id: string, role: 'STUDENT' | 'COACH' | 'ADMIN') =>
+    api.patch(`/api/admin/students/${id}/role`, { role }),
   getPackages: () => api.get('/api/packages'),
+
+  // Coaches
+  getCoaches: () => api.get('/api/admin/coaches'),
 
   // Pagos
   getPayments: (params?: { page?: number; limit?: number; status?: string }) =>

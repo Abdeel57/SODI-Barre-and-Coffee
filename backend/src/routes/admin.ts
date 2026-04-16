@@ -113,7 +113,7 @@ router.get('/students', async (req: Request, res: Response, next: NextFunction) 
     const skip = (Math.max(parseInt(page as string) || 1, 1) - 1) * take
 
     const where = {
-      role: 'STUDENT' as const,
+      role: { in: ['STUDENT', 'COACH'] as const },
       ...(search
         ? {
             OR: [
@@ -132,6 +132,7 @@ router.get('/students', async (req: Request, res: Response, next: NextFunction) 
           name: true,
           email: true,
           phone: true,
+          role: true,
           createdAt: true,
           subscription: {
             select: {
@@ -155,6 +156,7 @@ router.get('/students', async (req: Request, res: Response, next: NextFunction) 
       name: s.name,
       email: s.email,
       phone: s.phone,
+      role: s.role,
       createdAt: s.createdAt,
       totalBookings: s._count.bookings,
       subscription: s.subscription
@@ -253,6 +255,42 @@ router.patch(
   },
 )
 
+// ─── GET /api/admin/coaches ───────────────────────────────────────────────────
+router.get('/coaches', async (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    const coaches = await prisma.user.findMany({
+      where: { role: { in: ['COACH', 'ADMIN'] } },
+      select: { id: true, name: true, email: true, role: true },
+      orderBy: { name: 'asc' },
+    })
+    res.json({ data: coaches })
+  } catch (err) {
+    next(err)
+  }
+})
+
+// ─── PATCH /api/admin/students/:id/role ───────────────────────────────────────
+const patchRoleSchema = z.object({
+  role: z.enum(['STUDENT', 'COACH', 'ADMIN']),
+})
+
+router.patch('/students/:id/role', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { role } = patchRoleSchema.parse(req.body)
+    const user = await prisma.user.findUnique({ where: { id: req.params['id'] } })
+    if (!user) return next(createError(404, 'Usuario no encontrado'))
+
+    const updated = await prisma.user.update({
+      where: { id: req.params['id'] },
+      data: { role },
+      select: { id: true, name: true, email: true, role: true },
+    })
+    return res.json(updated)
+  } catch (err) {
+    return next(err)
+  }
+})
+
 // ─── GET /api/admin/classes ───────────────────────────────────────────────────
 router.get('/classes', async (_req: Request, res: Response, next: NextFunction) => {
   try {
@@ -268,6 +306,7 @@ router.get('/classes', async (_req: Request, res: Response, next: NextFunction) 
     const classes = await prisma.class.findMany({
       orderBy: [{ dayOfWeek: 'asc' }, { startTime: 'asc' }],
       include: {
+        coach: { select: { id: true, name: true } },
         _count: {
           select: {
             bookings: {
@@ -291,6 +330,8 @@ router.get('/classes', async (_req: Request, res: Response, next: NextFunction) 
       durationMin: c.durationMin,
       maxCapacity: c.maxCapacity,
       isActive: c.isActive,
+      coachId: c.coachId,
+      coachName: c.coach?.name ?? null,
       bookingsThisWeek: c._count.bookings,
     }))
 
@@ -333,6 +374,7 @@ const updateClassSchema = z.object({
   durationMin: z.number().int().min(1).optional(),
   maxCapacity: z.number().int().min(1).max(30).optional(),
   isActive: z.boolean().optional(),
+  coachId: z.string().nullable().optional(),
 })
 
 router.patch('/classes/:id', async (req: Request, res: Response, next: NextFunction) => {

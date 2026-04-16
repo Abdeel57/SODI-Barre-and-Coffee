@@ -39,8 +39,40 @@ export interface Package {
 }
 
 export type BookingStatus = 'CONFIRMED' | 'CANCELLED' | 'ATTENDED'
-export type UserRole    = 'STUDENT' | 'ADMIN'
+export type UserRole    = 'STUDENT' | 'ADMIN' | 'COACH'
 export type Gender      = 'FEMALE' | 'MALE' | 'OTHER' | 'PREFER_NOT_TO_SAY'
+
+// ─── Coach ────────────────────────────────────────────────────────────────────
+export interface CoachClass {
+  id: string
+  name: string
+  instructor: string
+  dayOfWeek: number
+  dayLabel: string
+  startTime: string
+  durationMin: number
+  maxCapacity: number
+  isToday: boolean
+  bookingsThisWeek: number
+}
+
+export interface AttendanceBooking {
+  bookingId: string
+  status: 'CONFIRMED' | 'ATTENDED'
+  student: { id: string; name: string; email: string }
+}
+
+export interface AttendanceData {
+  classInfo: {
+    id: string
+    name: string
+    instructor: string
+    startTime: string
+    durationMin: number
+    date: string
+  }
+  bookings: AttendanceBooking[]
+}
 
 export interface User {
   id:        string

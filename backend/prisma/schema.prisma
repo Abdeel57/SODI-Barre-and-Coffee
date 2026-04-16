@@ -23,6 +23,7 @@ model User {
   subscription  Subscription?
   payments      Payment[]
   healthProfile HealthProfile?
+  coachClasses  Class[]        @relation("CoachClasses")
 }
 
 model HealthProfile {
@@ -51,7 +52,9 @@ model Class {
   durationMin Int       @default(55)
   maxCapacity Int       @default(12)
   isActive    Boolean   @default(true)
+  coachId     String?
   bookings    Booking[]
+  coach       User?     @relation("CoachClasses", fields: [coachId], references: [id], onDelete: SetNull)
 }
 
 model Booking {
@@ -102,6 +105,7 @@ model Payment {
 enum Role {
   STUDENT
   ADMIN
+  COACH
 }
 
 enum Gender {

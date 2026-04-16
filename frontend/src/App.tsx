@@ -4,6 +4,7 @@ import { useAuth } from './hooks/useAuth'
 import { Toast } from './components/ui/Toast'
 import { BottomNav } from './components/BottomNav'
 import { AdminLayout } from './components/admin/AdminLayout'
+import { CoachLayout } from './components/coach/CoachLayout'
 import { Skeleton } from './components/ui/Skeleton'
 
 // ── Lazy pages ─────────────────────────────────────────────────────────────────
@@ -17,6 +18,8 @@ const AdminDashboardPage = lazy(() => import('./pages/admin/DashboardPage'))
 const AdminClassesPage = lazy(() => import('./pages/admin/ClassesPage'))
 const AdminStudentsPage = lazy(() => import('./pages/admin/StudentsPage'))
 const AdminPaymentsPage = lazy(() => import('./pages/admin/PaymentsPage'))
+const CoachDashboardPage = lazy(() => import('./pages/coach/DashboardPage'))
+const CoachAttendancePage = lazy(() => import('./pages/coach/AttendancePage'))
 
 // ── Loading screen ─────────────────────────────────────────────────────────────
 function LoadingScreen() {
@@ -52,6 +55,15 @@ function AdminRoute() {
   )
 }
 
+// ── Coach layout route ─────────────────────────────────────────────────────────
+function CoachRoute() {
+  const { user, isLoading } = useAuth()
+  if (isLoading) return <LoadingScreen />
+  if (!user) return <Navigate to="/login" replace />
+  if (user.role !== 'COACH' && user.role !== 'ADMIN') return <Navigate to="/schedule" replace />
+  return <CoachLayout />
+}
+
 // ── App ────────────────────────────────────────────────────────────────────────
 export default function App() {
   return (
@@ -76,6 +88,13 @@ export default function App() {
             <Route path="classes" element={<AdminClassesPage />} />
             <Route path="students" element={<AdminStudentsPage />} />
             <Route path="payments" element={<AdminPaymentsPage />} />
+          </Route>
+
+          {/* Coach */}
+          <Route path="/coach" element={<CoachRoute />}>
+            <Route index element={<Navigate to="/coach/dashboard" replace />} />
+            <Route path="dashboard" element={<CoachDashboardPage />} />
+            <Route path="attendance" element={<CoachAttendancePage />} />
           </Route>
 
           {/* 404 */}

@@ -32,7 +32,16 @@ export interface AdminClass {
   durationMin: number
   maxCapacity: number
   isActive: boolean
+  coachId: string | null
+  coachName: string | null
   bookingsThisWeek: number
+}
+
+export interface CoachUser {
+  id: string
+  name: string
+  email: string
+  role: 'COACH' | 'ADMIN'
 }
 
 export interface AdminStudent {
@@ -40,6 +49,7 @@ export interface AdminStudent {
   name: string
   email: string
   phone: string | null
+  role: 'STUDENT' | 'COACH' | 'ADMIN'
   createdAt: string
   totalBookings: number
   subscription: {
