@@ -93,6 +93,41 @@ router.post(
   },
 )
 
+// ─── GET /api/push/status ─────────────────────────────────────────────────────
+// Devuelve si el usuario tiene suscripción guardada en DB
+router.get('/status', auth, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.user!.id },
+      select: { pushToken: true },
+    })
+    res.json({ subscribed: !!user?.pushToken })
+  } catch (err) {
+    next(err)
+  }
+})
+
+// ─── POST /api/push/test ──────────────────────────────────────────────────────
+// Envía un push de prueba al usuario logueado
+router.post('/test', auth, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.user!.id },
+      select: { pushToken: true },
+    })
+    if (!user?.pushToken) {
+      return next(createError(400, 'No tienes suscripción push activa. Activa las notificaciones primero.'))
+    }
+    await sendPushToUser(req.user!.id, {
+      title: '¡Notificaciones activas! 🎉',
+      body:  'Las notificaciones de SODI Barre & Coffee están funcionando correctamente.',
+    })
+    return res.json({ ok: true })
+  } catch (err) {
+    return next(err)
+  }
+})
+
 // ─── DELETE /api/push/unsubscribe ─────────────────────────────────────────────
 router.delete('/unsubscribe', auth, async (req: Request, res: Response, next: NextFunction) => {
   try {

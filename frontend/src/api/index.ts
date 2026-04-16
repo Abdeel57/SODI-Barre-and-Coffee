@@ -141,9 +141,10 @@ export const paymentsApi = {
 }
 
 export const pushApi = {
-  subscribe: (subscription: PushSubscriptionJSON) =>
-    api.post('/api/push/subscribe', subscription),
+  subscribe:   (subscription: PushSubscriptionJSON) => api.post('/api/push/subscribe', subscription),
   unsubscribe: () => api.delete('/api/push/unsubscribe'),
+  status:      () => api.get('/api/push/status'),
+  test:        () => api.post('/api/push/test'),
 }
 
 export const profileApi = {

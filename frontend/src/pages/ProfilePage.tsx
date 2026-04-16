@@ -79,7 +79,7 @@ export default function ProfilePage() {
   const user      = useStore((s) => s.user)
   const logout    = useStore((s) => s.logout)
   const showToast = useStore((s) => s.showToast)
-  const { permission, requestPermission } = usePush()
+  const { permission, requestPermission, sendTestPush } = usePush()
 
   const [subscription, setSubscription] = useState<Subscription | null>(null)
   const [payments,     setPayments]     = useState<PaymentHistory[]>([])
@@ -342,6 +342,16 @@ export default function ProfilePage() {
           <span className="text-label flex-1 text-left">Notificaciones</span>
           <Toggle on={permission === 'granted'} />
         </button>
+
+        {permission === 'granted' && (
+          <button
+            className="flex items-center gap-3 px-6 py-3 border-b border-nude-border w-full tap-target"
+            onClick={sendTestPush}
+          >
+            <Bell size={16} strokeWidth={1.5} className="text-stone shrink-0" />
+            <span className="text-label text-stone text-[13px] flex-1 text-left">Enviar notificación de prueba</span>
+          </button>
+        )}
 
         <ProfileRow
           icon={<KeyRound size={20} strokeWidth={1.5} className="text-stone" />}

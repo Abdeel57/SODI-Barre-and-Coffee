@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { pushApi } from '../api'
 import { useStore } from '../store/useStore'
 
-function urlBase64ToUint8Array(base64String: string): ArrayBuffer {
+function urlBase64ToUint8Array(base64String: string): Uint8Array {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
   const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/')
   const rawData = atob(base64)
@@ -10,7 +10,7 @@ function urlBase64ToUint8Array(base64String: string): ArrayBuffer {
   for (let i = 0; i < rawData.length; i++) {
     buffer[i] = rawData.charCodeAt(i)
   }
-  return buffer.buffer
+  return buffer
 }
 
 export function usePush() {
@@ -26,11 +26,18 @@ export function usePush() {
     'PushManager' in window
 
   async function requestPermission(): Promise<void> {
-    if (!isSupported) return
+    if (!isSupported) {
+      showToast('Tu navegador no soporta notificaciones push', 'error')
+      return
+    }
 
     const result = await Notification.requestPermission()
     setPermission(result)
 
+    if (result === 'denied') {
+      showToast('Notificaciones bloqueadas. Actívalas desde ajustes del navegador.', 'error')
+      return
+    }
     if (result !== 'granted') return
 
     try {
@@ -38,11 +45,12 @@ export function usePush() {
 
       const vapidKey = import.meta.env.VITE_VAPID_KEY
       if (!vapidKey) {
-        console.warn('VITE_VAPID_KEY no configurada — push desactivado')
+        showToast('Error de configuración: clave VAPID no encontrada. Contacta al soporte.', 'error')
+        console.error('VITE_VAPID_KEY no está incrustada en el bundle')
         return
       }
 
-      // Desuscribir suscripción anterior si existe (por si cambió la clave VAPID)
+      // Limpiar suscripción anterior (por si cambió la clave VAPID)
       const existing = await registration.pushManager.getSubscription()
       if (existing) await existing.unsubscribe()
 
@@ -52,12 +60,24 @@ export function usePush() {
       })
 
       await pushApi.subscribe(subscription.toJSON() as PushSubscriptionJSON)
-      showToast('Notificaciones activadas', 'success')
+      showToast('Notificaciones activadas ✓', 'success')
     } catch (err) {
       console.error('Error al suscribir push:', err)
-      showToast('No se pudo activar notificaciones', 'error')
+      const msg = err instanceof Error ? err.message : String(err)
+      showToast(`No se pudo activar notificaciones: ${msg}`, 'error')
     }
   }
 
-  return { permission, requestPermission, isSupported }
+  async function sendTestPush(): Promise<void> {
+    try {
+      await pushApi.test()
+      showToast('Notificación de prueba enviada', 'success')
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error
+        ?? 'Sin suscripción activa — activa notificaciones primero'
+      showToast(msg, 'error')
+    }
+  }
+
+  return { permission, requestPermission, sendTestPush, isSupported }
 }
