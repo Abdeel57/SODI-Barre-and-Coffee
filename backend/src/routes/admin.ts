@@ -113,7 +113,7 @@ router.get('/students', async (req: Request, res: Response, next: NextFunction) 
     const skip = (Math.max(parseInt(page as string) || 1, 1) - 1) * take
 
     const where = {
-      role: { in: ['STUDENT', 'COACH'] as const },
+      role: { in: ['STUDENT', 'COACH'] as ('STUDENT' | 'COACH')[] },
       ...(search
         ? {
             OR: [

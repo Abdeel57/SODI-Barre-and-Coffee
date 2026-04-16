@@ -4,7 +4,7 @@ import jwt from 'jsonwebtoken'
 interface TokenPayload {
   id: string
   email: string
-  role: 'STUDENT' | 'ADMIN'
+  role: 'STUDENT' | 'ADMIN' | 'COACH'
   iat?: number
   exp?: number
 }
