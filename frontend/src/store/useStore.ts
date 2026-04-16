@@ -17,6 +17,10 @@ interface Store {
   logout: () => void
   isAdmin: () => boolean
 
+  // ── Onboarding ────────────────────────────────────────────────────────
+  onboardingCompleted: boolean
+  setOnboardingCompleted: () => void
+
   // ── UI ────────────────────────────────────────────────────────────────
   toast: Toast | null
   showToast: (message: string, type: ToastType) => void
@@ -33,6 +37,10 @@ export const useStore = create<Store>()(
       logout: () => set({ user: null, accessToken: null }),
       isAdmin: () => get().user?.role === 'ADMIN',
 
+      // ── Onboarding ──────────────────────────────────────────────────
+      onboardingCompleted: false,
+      setOnboardingCompleted: () => set({ onboardingCompleted: true }),
+
       // ── UI ──────────────────────────────────────────────────────────
       toast: null,
       showToast: (message, type) => set({ toast: { message, type } }),
@@ -43,6 +51,7 @@ export const useStore = create<Store>()(
       partialize: (state) => ({
         user: state.user,
         accessToken: state.accessToken,
+        onboardingCompleted: state.onboardingCompleted,
       }),
     },
   ),

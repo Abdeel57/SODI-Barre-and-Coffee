@@ -20,9 +20,10 @@ const AdminDashboardPage = lazy(() => import('./pages/admin/DashboardPage'))
 const AdminClassesPage   = lazy(() => import('./pages/admin/ClassesPage'))
 const AdminStudentsPage  = lazy(() => import('./pages/admin/StudentsPage'))
 const AdminPaymentsPage  = lazy(() => import('./pages/admin/PaymentsPage'))
-const AdminCoachesPage   = lazy(() => import('./pages/admin/CoachesPage'))
-const CoachDashboardPage = lazy(() => import('./pages/coach/DashboardPage'))
+const AdminCoachesPage    = lazy(() => import('./pages/admin/CoachesPage'))
+const CoachDashboardPage  = lazy(() => import('./pages/coach/DashboardPage'))
 const CoachAttendancePage = lazy(() => import('./pages/coach/AttendancePage'))
+const OnboardingOverlay   = lazy(() => import('./components/OnboardingOverlay'))
 
 // ── Loading screen ─────────────────────────────────────────────────────────────
 function LoadingScreen() {
@@ -117,6 +118,7 @@ export default function App() {
 
       <Toast />
       <BottomNav />
+      <OnboardingOverlay />
     </>
   )
 }
