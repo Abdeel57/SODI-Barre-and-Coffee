@@ -1,7 +1,9 @@
 import { Router, Request, Response, NextFunction } from 'express'
 import { z } from 'zod'
+import bcrypt from 'bcryptjs'
 import { prisma } from '../lib/prisma'
 import { auth } from '../middleware/auth'
+import { createError } from '../middleware/errorHandler'
 
 const router = Router()
 
@@ -41,6 +43,38 @@ router.put('/health', auth, async (req: Request, res: Response, next: NextFuncti
     })
 
     return res.json(profile)
+  } catch (err) {
+    return next(err)
+  }
+})
+
+// ─── PUT /api/profile/password ────────────────────────────────────────────────
+const passwordSchema = z.object({
+  currentPassword: z.string().min(1, 'Contraseña actual requerida'),
+  newPassword:     z.string().min(8, 'La nueva contraseña debe tener al menos 8 caracteres'),
+})
+
+router.put('/password', auth, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { currentPassword, newPassword } = passwordSchema.parse(req.body)
+
+    const user = await prisma.user.findUnique({ where: { id: req.user!.id } })
+    if (!user?.passwordHash) {
+      return next(createError(400, 'No tienes contraseña configurada'))
+    }
+
+    const valid = await bcrypt.compare(currentPassword, user.passwordHash)
+    if (!valid) {
+      return next(createError(401, 'La contraseña actual es incorrecta'))
+    }
+
+    const hash = await bcrypt.hash(newPassword, 12)
+    await prisma.user.update({
+      where: { id: req.user!.id },
+      data:  { passwordHash: hash },
+    })
+
+    return res.json({ ok: true })
   } catch (err) {
     return next(err)
   }
