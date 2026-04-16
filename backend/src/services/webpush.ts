@@ -4,14 +4,23 @@ import { prisma } from '../lib/prisma'
 let vapidConfigured = false
 
 function initVapid(): void {
-  const publicKey = process.env.VAPID_PUBLIC_KEY
+  // VAPID_PUBLIC_KEY y VITE_VAPID_KEY son la misma clave pública — aceptamos cualquiera
+  const publicKey  = process.env.VAPID_PUBLIC_KEY || process.env.VITE_VAPID_KEY
   const privateKey = process.env.VAPID_PRIVATE_KEY
-  const email = process.env.VAPID_EMAIL
+  const email      = process.env.VAPID_EMAIL
 
-  if (publicKey && privateKey && email && publicKey.length > 10) {
-    webpush.setVapidDetails(email, publicKey, privateKey)
-    vapidConfigured = true
-    console.log('✅ VAPID configurado')
+  if (!publicKey)  console.warn('⚠️  Falta VAPID_PUBLIC_KEY (o VITE_VAPID_KEY)')
+  if (!privateKey) console.warn('⚠️  Falta VAPID_PRIVATE_KEY')
+  if (!email)      console.warn('⚠️  Falta VAPID_EMAIL')
+
+  if (publicKey && privateKey && email) {
+    try {
+      webpush.setVapidDetails(email, publicKey, privateKey)
+      vapidConfigured = true
+      console.log('✅ VAPID configurado')
+    } catch (err) {
+      console.error('❌ Error al configurar VAPID (clave inválida):', err)
+    }
   } else {
     console.warn('⚠️  VAPID keys no configuradas — push notifications desactivadas')
   }
