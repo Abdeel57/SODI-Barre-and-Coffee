@@ -9,6 +9,9 @@ function initVapid(): void {
   const privateKey = process.env.VAPID_PRIVATE_KEY
   const email      = process.env.VAPID_EMAIL
 
+  console.log(`  VAPID_PUBLIC_KEY  : ${publicKey  ? `ok (${publicKey.length} chars)` : 'MISSING'}`)
+  console.log(`  VAPID_PRIVATE_KEY : ${privateKey ? `ok (${privateKey.length} chars)` : 'MISSING'}`)
+  console.log(`  VAPID_EMAIL       : ${email      ? `ok` : 'MISSING'}`)
   if (!publicKey)  console.warn('⚠️  Falta VAPID_PUBLIC_KEY (o VITE_VAPID_KEY)')
   if (!privateKey) console.warn('⚠️  Falta VAPID_PRIVATE_KEY')
   if (!email)      console.warn('⚠️  Falta VAPID_EMAIL')
