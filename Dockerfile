@@ -15,6 +15,8 @@ WORKDIR /app
 COPY backend/package*.json ./
 COPY backend/prisma ./prisma/
 RUN npm ci
+
+# Genera el cliente Prisma con los binarios para Alpine (linux-musl)
 RUN npx prisma generate
 
 COPY backend/tsconfig.json ./
@@ -27,15 +29,22 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 
-# Backend build
-COPY --from=backend-builder /app/dist ./dist
-COPY --from=backend-builder /app/node_modules ./node_modules
-COPY --from=backend-builder /app/prisma ./prisma
-COPY --from=backend-builder /app/package.json ./
+# Runtime del backend
+COPY --from=backend-builder /app/dist          ./dist
+COPY --from=backend-builder /app/node_modules  ./node_modules
+COPY --from=backend-builder /app/prisma        ./prisma
+COPY --from=backend-builder /app/package.json  ./
 
-# Frontend build served as static files by Express
-COPY --from=frontend-builder /frontend/dist ./dist/public
+# Frontend estático servido por Express
+COPY --from=frontend-builder /frontend/dist    ./dist/public
+
+# Script de seed de producción (JS puro, no necesita ts-node)
+COPY backend/scripts/seed-prod.js ./scripts/seed-prod.js
+
+# Entrypoint: migraciones → seed → servidor
+COPY backend/entrypoint.sh ./entrypoint.sh
+RUN chmod +x ./entrypoint.sh
 
 EXPOSE 3000
 
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/index.js"]
+ENTRYPOINT ["./entrypoint.sh"]
