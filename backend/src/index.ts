@@ -1,4 +1,5 @@
 import 'dotenv/config'
+import path from 'path'
 import express from 'express'
 import cors from 'cors'
 import helmet from 'helmet'
@@ -47,6 +48,15 @@ app.use('/api/admin', adminRoutes)
 
 // ─── Error handler global (debe ir al final) ──────────────────────────────────
 app.use(errorHandler)
+
+// ─── Frontend estático (solo en producción) ────────────────────────────────────
+if (process.env.NODE_ENV === 'production') {
+  const publicPath = path.join(__dirname, 'public')
+  app.use(express.static(publicPath))
+  app.get('*', (_req, res) => {
+    res.sendFile(path.join(publicPath, 'index.html'))
+  })
+}
 
 app.listen(PORT, () => {
   console.log(`🚀 SODI Barre API corriendo en http://localhost:${PORT}`)
