@@ -119,15 +119,14 @@ export default function LandingPage() {
           Studio · México
         </p>
 
-        {/* Logo */}
-        <div style={scaleFade(380)}>
-          <img
-            src="/LOGOSODI.png"
-            alt="SODI Barre & Coffee"
-            className="w-60 h-auto drop-shadow-sm"
-            draggable={false}
-          />
-        </div>
+        {/* Logo — scale entrance + perpetual float */}
+        <img
+          src="/LOGOSODI.png"
+          alt="SODI Barre & Coffee"
+          className="w-60 h-auto drop-shadow-sm"
+          draggable={false}
+          style={{ animation: 'landingScale 900ms cubic-bezier(0.22,1,0.36,1) 380ms both, logoFloat 6s ease-in-out 1400ms infinite' }}
+        />
 
         {/* Divider with dots */}
         <div className="flex items-center gap-3 w-full justify-center" style={fadeIn(620, 700)}>
@@ -153,17 +152,15 @@ export default function LandingPage() {
         </div>
 
         {/* Tagline */}
-        <div className="flex flex-col items-center gap-1.5" style={fadeUp(740)}>
-          <p className="font-display text-[28px] font-light text-noir leading-snug tracking-wide text-center">
-            Barre &amp; Coffee
-          </p>
-          <p className="text-stone text-[11px] tracking-[0.22em] uppercase font-body">
-            Comunidad · Movimiento · Estilo
-          </p>
-        </div>
+        <p
+          className="text-stone text-[11px] tracking-[0.22em] uppercase font-body text-center"
+          style={fadeUp(740)}
+        >
+          Comunidad · Movimiento · Estilo
+        </p>
 
         {/* CTA buttons */}
-        <div className="flex flex-col gap-3 w-full mt-2" style={fadeUp(920)}>
+        <div className="flex flex-col gap-3 w-full mt-2" style={fadeUp(880)}>
           <Link
             to="/login"
             className="w-full block text-center py-3.5 rounded-sm bg-noir text-white text-label tracking-wide transition-all duration-300 hover:bg-[#1a1a1a] active:scale-[0.98] tap-target"
@@ -179,6 +176,50 @@ export default function LandingPage() {
           </Link>
         </div>
       </div>
+
+        {/* Social media */}
+        <div className="flex flex-col items-center gap-4 w-full mt-1" style={fadeUp(1080)}>
+          <p className="text-stone text-[9px] tracking-[0.28em] uppercase font-body">Síguenos</p>
+          <div className="flex items-center gap-5">
+
+            {/* Instagram */}
+            <a href="https://www.instagram.com/sodibarre" target="_blank" rel="noopener noreferrer" className="tap-target transition-transform duration-300 hover:scale-110 active:scale-95">
+              <svg width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                  <radialGradient id="ig-bg" cx="30%" cy="100%" r="130%">
+                    <stop offset="0%"  stopColor="#FFDC80"/>
+                    <stop offset="25%" stopColor="#F77737"/>
+                    <stop offset="50%" stopColor="#E1306C"/>
+                    <stop offset="75%" stopColor="#833AB4"/>
+                    <stop offset="100%" stopColor="#405DE6"/>
+                  </radialGradient>
+                </defs>
+                <rect width="36" height="36" rx="9" fill="url(#ig-bg)"/>
+                <rect x="10" y="10" width="16" height="16" rx="4.5" stroke="white" strokeWidth="1.6" fill="none"/>
+                <circle cx="18" cy="18" r="4" stroke="white" strokeWidth="1.6" fill="none"/>
+                <circle cx="23" cy="13" r="1.1" fill="white"/>
+              </svg>
+            </a>
+
+            {/* Facebook */}
+            <a href="https://www.facebook.com/sodibarre" target="_blank" rel="noopener noreferrer" className="tap-target transition-transform duration-300 hover:scale-110 active:scale-95">
+              <svg width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect width="36" height="36" rx="9" fill="#1877F2"/>
+                <path d="M19.6 28V19.6H22.2L22.6 16.6H19.6V14.7C19.6 13.8 19.8 13.2 21.1 13.2H22.7V10.5C22.1 10.4 21.3 10.4 20.4 10.4C18 10.4 16.4 11.9 16.4 14.4V16.6H13.8V19.6H16.4V28H19.6Z" fill="white"/>
+              </svg>
+            </a>
+
+            {/* TikTok */}
+            <a href="https://www.tiktok.com/@sodibarre" target="_blank" rel="noopener noreferrer" className="tap-target transition-transform duration-300 hover:scale-110 active:scale-95">
+              <svg width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect width="36" height="36" rx="9" fill="#010101"/>
+                <path d="M24.1 14.1C23.1 14 22.2 13.5 21.5 12.7C20.8 11.9 20.4 10.9 20.4 9.8V9H17.6V22.1C17.6 22.7 17.4 23.3 17 23.7C16.6 24.1 16 24.4 15.4 24.4C14.1 24.4 13.1 23.4 13.1 22.1C13.1 20.8 14.1 19.8 15.4 19.8C15.6 19.8 15.9 19.8 16.1 19.9V17C15.8 17 15.6 16.9 15.4 16.9C12.5 16.9 10.2 19.2 10.2 22.1C10.2 25 12.5 27.3 15.4 27.3C18.3 27.3 20.6 25 20.6 22.1V15.6C21.7 16.4 23 16.8 24.4 16.8V14C24.3 14.1 24.2 14.1 24.1 14.1Z" fill="white"/>
+                <path d="M23.4 13.5C23.8 13.8 24.3 14 24.8 14.1V14C24.3 13.9 23.8 13.7 23.4 13.5Z" fill="#69C9D0"/>
+              </svg>
+            </a>
+
+          </div>
+        </div>
 
       {/* ── Bottom decorative line + footer ─────────────────────────────────── */}
       <div className="relative z-10 flex flex-col items-center gap-4 pb-10 px-10 w-full">

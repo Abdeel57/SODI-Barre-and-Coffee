@@ -53,6 +53,7 @@ export default function LoginPage() {
             src="/LOGOSODI.png"
             alt="SODI Barre & Coffee"
             className="w-56 h-auto"
+            style={{ animation: 'logoFloat 6s ease-in-out 0.3s infinite' }}
           />
           <div className="flex flex-col items-center gap-1">
             <div className="w-10 h-px bg-nude" />
