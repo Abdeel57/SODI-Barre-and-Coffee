@@ -7,13 +7,14 @@ interface NavItem {
   to: string
   icon: typeof Calendar
   label: string
+  tutorialId: string
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { to: '/schedule', icon: Calendar, label: 'Horario' },
-  { to: '/bookings', icon: BookOpen, label: 'Reservas' },
-  { to: '/packages', icon: CreditCard, label: 'Paquetes' },
-  { to: '/profile', icon: User, label: 'Perfil' },
+  { to: '/schedule', icon: Calendar,   label: 'Horario',  tutorialId: 'schedule' },
+  { to: '/bookings', icon: BookOpen,   label: 'Reservas', tutorialId: 'bookings' },
+  { to: '/packages', icon: CreditCard, label: 'Paquetes', tutorialId: 'packages' },
+  { to: '/profile',  icon: User,       label: 'Perfil',   tutorialId: 'profile'  },
 ]
 
 export function BottomNav() {
@@ -32,10 +33,11 @@ export function BottomNav() {
       style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
     >
       <div className="flex h-16">
-        {NAV_ITEMS.map(({ to, icon: Icon, label }) => (
+        {NAV_ITEMS.map(({ to, icon: Icon, label, tutorialId }) => (
           <NavLink
             key={to}
             to={to}
+            data-tutorial={tutorialId}
             className={({ isActive }) =>
               clsx(
                 'tap-target flex-1 flex flex-col items-center justify-center gap-0.5',

@@ -18,7 +18,9 @@ interface Store {
   isAdmin: () => boolean
 
   // ── Onboarding ────────────────────────────────────────────────────────
-  onboardingCompleted: boolean
+  pendingOnboarding: boolean    // true only after new registration — triggers the tutorial
+  onboardingCompleted: boolean  // true once the tutorial is done/skipped — never shows again
+  triggerOnboarding: () => void
   setOnboardingCompleted: () => void
 
   // ── UI ────────────────────────────────────────────────────────────────
@@ -38,8 +40,10 @@ export const useStore = create<Store>()(
       isAdmin: () => get().user?.role === 'ADMIN',
 
       // ── Onboarding ──────────────────────────────────────────────────
+      pendingOnboarding: false,
       onboardingCompleted: false,
-      setOnboardingCompleted: () => set({ onboardingCompleted: true }),
+      triggerOnboarding: () => set({ pendingOnboarding: true }),
+      setOnboardingCompleted: () => set({ onboardingCompleted: true, pendingOnboarding: false }),
 
       // ── UI ──────────────────────────────────────────────────────────
       toast: null,
@@ -51,6 +55,7 @@ export const useStore = create<Store>()(
       partialize: (state) => ({
         user: state.user,
         accessToken: state.accessToken,
+        pendingOnboarding: state.pendingOnboarding,
         onboardingCompleted: state.onboardingCompleted,
       }),
     },
