@@ -26,15 +26,27 @@ export function BottomSheet({ isOpen, onClose, title, children }: BottomSheetPro
     }
   }, [isOpen])
 
-  // Scroll lock
+  // Scroll + position lock — prevents background scroll AND iOS bounce while sheet is open
   useEffect(() => {
     if (shouldRender) {
+      const scrollY = window.scrollY
       document.body.style.overflow = 'hidden'
+      document.body.style.position = 'fixed'
+      document.body.style.top = `-${scrollY}px`
+      document.body.style.width = '100%'
     } else {
+      const scrollY = parseInt(document.body.style.top || '0') * -1
       document.body.style.overflow = ''
+      document.body.style.position = ''
+      document.body.style.top = ''
+      document.body.style.width = ''
+      window.scrollTo(0, scrollY)
     }
     return () => {
       document.body.style.overflow = ''
+      document.body.style.position = ''
+      document.body.style.top = ''
+      document.body.style.width = ''
     }
   }, [shouldRender])
 
@@ -56,7 +68,7 @@ export function BottomSheet({ isOpen, onClose, title, children }: BottomSheetPro
         className={clsx(
           'absolute bottom-0 inset-x-0',
           'liquid-glass bg-white/95 rounded-t-2xl',
-          'max-h-[90vh] overflow-y-auto no-scrollbar',
+          'max-h-[85dvh] overflow-y-auto no-scrollbar',
           'pb-[env(safe-area-inset-bottom,16px)]',
           isClosing ? 'bottom-sheet-exit' : 'bottom-sheet-enter',
         )}

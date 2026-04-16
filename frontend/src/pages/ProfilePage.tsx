@@ -49,7 +49,7 @@ function HealthToggle({ label, checked, onChange }: { label: string; checked: bo
 // ─── Shared input styles ──────────────────────────────────────────────────────
 const fieldCls = clsx(
   'w-full border border-nude-border rounded-sm px-4 py-3',
-  'font-body text-[15px] text-noir placeholder:text-stone bg-white',
+  'font-body text-[16px] text-noir placeholder:text-stone bg-white',
   'focus:outline-none focus:border-nude transition-colors appearance-none',
 )
 const labelCls = 'text-[12px] text-stone'
@@ -227,7 +227,7 @@ export default function ProfilePage() {
     : 'Sin información'
 
   return (
-    <div className="min-h-screen bg-off-white pb-24 page-enter">
+    <div className="min-h-screen bg-off-white pb-nav page-enter">
 
       {/* ── Header / Avatar ────────────────────────────────────────────── */}
       <header className="pt-12 px-6 pb-6">

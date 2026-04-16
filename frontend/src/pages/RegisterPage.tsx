@@ -11,14 +11,14 @@ import { clsx } from 'clsx'
 // ─── Helpers de estilo reutilizables ─────────────────────────────────────────
 const selectClass = clsx(
   'w-full border border-nude-border rounded-sm px-4 py-3',
-  'font-body text-[15px] text-noir bg-white',
+  'font-body text-[16px] text-noir bg-white',
   'focus:outline-none focus:border-nude transition-colors duration-200',
   'appearance-none',
 )
 
 const textareaClass = clsx(
   'w-full border border-nude-border rounded-sm px-4 py-3',
-  'font-body text-[15px] text-noir placeholder:text-stone bg-white',
+  'font-body text-[16px] text-noir placeholder:text-stone bg-white',
   'focus:outline-none focus:border-nude transition-colors duration-200',
   'resize-none',
 )

@@ -94,7 +94,7 @@ export default function SchedulePage() {
   )
 
   return (
-    <div className="min-h-screen bg-off-white pb-24 page-enter">
+    <div className="min-h-screen bg-off-white pb-nav page-enter">
       {/* Header */}
       <header className="px-5 pt-12 pb-4">
         <p className="text-section text-stone text-[11px]">SODI Barre & Coffee</p>

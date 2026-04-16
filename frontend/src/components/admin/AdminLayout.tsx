@@ -78,7 +78,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       </aside>
 
       {/* ── Main content ─────────────────────────────────────────────────── */}
-      <main className="pt-14 md:ml-[200px] pb-24 md:pb-10 min-h-screen">
+      <main className="pt-14 md:ml-[200px] pb-nav md:pb-10 min-h-screen">
         {children ?? <Outlet />}
       </main>
 

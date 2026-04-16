@@ -158,7 +158,7 @@ export default function PackagesPage() {
   const popularId = sortedByPrice.length >= 2 ? sortedByPrice[Math.floor(sortedByPrice.length / 2)]?.id : null
 
   return (
-    <div className="min-h-screen bg-off-white pb-24 page-enter">
+    <div className="min-h-screen bg-off-white pb-nav page-enter">
       <header className="px-5 pt-12 pb-4">
         <p className="text-section text-stone text-[11px]">COMPRAR</p>
         <h1 className="text-hero text-noir mt-1">Paquetes</h1>

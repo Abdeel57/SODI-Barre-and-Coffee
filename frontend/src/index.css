@@ -10,6 +10,8 @@
     color: #0d0d0d;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    /* Prevent iOS rubber-band bounce on root */
+    overscroll-behavior: none;
   }
 
   * {
@@ -19,6 +21,23 @@
   ::selection {
     background: #c9a882;
     color: #ffffff;
+  }
+
+  /* ── Prevent double-tap zoom on interactive elements ─────────────────── */
+  button, a, [role="button"] {
+    touch-action: manipulation;
+  }
+
+  /* ── Prevent iOS callout menu on long-press ──────────────────────────── */
+  img {
+    -webkit-touch-callout: none;
+  }
+
+  /* ── iOS input zoom prevention — force 16px minimum ─────────────────── */
+  /* iOS zooms in when focused input font-size < 16px                      */
+  input, select, textarea {
+    font-size: 16px !important;
+    touch-action: manipulation;
   }
 }
 
@@ -126,6 +145,12 @@
   .tap-target:active {
     transform: scale(0.97);
     transition: transform 0.1s;
+  }
+
+  /* ── Safe-area bottom padding (nav clearance + iOS home bar) ─────────── */
+  /* Use .pb-nav on pages that have the student bottom nav                  */
+  .pb-nav {
+    padding-bottom: calc(4rem + env(safe-area-inset-bottom, 0px));
   }
 
   /* ── Scrollbar ────────────────────────────────────────────────────────── */

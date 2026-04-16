@@ -26,12 +26,12 @@ export function BottomNav() {
   return (
     <nav
       className={clsx(
-        'fixed bottom-0 inset-x-0 h-16 z-30',
+        'fixed bottom-0 inset-x-0 z-30',
         'liquid-glass border-t border-nude-border',
       )}
       style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
     >
-      <div className="flex h-full">
+      <div className="flex h-16">
         {NAV_ITEMS.map(({ to, icon: Icon, label }) => (
           <NavLink
             key={to}
