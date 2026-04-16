@@ -4,8 +4,11 @@ import { prisma } from '../lib/prisma'
 let vapidConfigured = false
 
 function initVapid(): void {
-  // VAPID_PUBLIC_KEY y VITE_VAPID_KEY son la misma clave pública — aceptamos cualquiera
-  const publicKey  = process.env.VAPID_PUBLIC_KEY || process.env.VITE_VAPID_KEY
+  // La clave pública VAPID debe decodificar a 65 bytes → 87 chars en base64url
+  // Si VAPID_PUBLIC_KEY tiene longitud incorrecta, usar VITE_VAPID_KEY como fallback
+  const rawPublic  = process.env.VAPID_PUBLIC_KEY
+  const vitePublic = process.env.VITE_VAPID_KEY
+  const publicKey  = (rawPublic && rawPublic.length >= 85) ? rawPublic : vitePublic
   const privateKey = process.env.VAPID_PRIVATE_KEY
   const email      = process.env.VAPID_EMAIL
 
