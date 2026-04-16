@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import type { ReactNode } from 'react'
 import { X, Calendar, BookOpen, CreditCard, User, Check } from 'lucide-react'
+import { useLocation } from 'react-router-dom'
 import { useStore } from '../store/useStore'
 import { profileApi } from '../api'
 
@@ -436,6 +437,7 @@ function CenterCard({
 export default function OnboardingOverlay() {
   const user                   = useStore((s) => s.user)
   const markOnboardingComplete = useStore((s) => s.markOnboardingComplete)
+  const location               = useLocation()
 
   const [stepIndex,      setStepIndex]      = useState(0)
   const [steps,          setSteps]          = useState<StepDef[]>([])
@@ -451,12 +453,14 @@ export default function OnboardingOverlay() {
     setSteps(buildSteps(isStandalone, isIOS, isAndroid))
   }, [])
 
-  // Trigger: user is a new student (server flag = false), on any device
+  // Trigger: user is a new student (server flag = false), on any device.
+  // Guard: don't fire while still on /register (health form not filled yet).
   useEffect(() => {
     if (user?.role !== 'STUDENT' || user?.onboardingCompleted !== false || steps.length === 0) return
+    if (location.pathname === '/register') return
     const t = setTimeout(() => setVisible(true), 600)
     return () => clearTimeout(t)
-  }, [user?.id, user?.onboardingCompleted, steps.length])
+  }, [user?.id, user?.onboardingCompleted, steps.length, location.pathname])
 
   // Capture Android install prompt
   useEffect(() => {
