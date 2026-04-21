@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Bell, LogOut, Package, Calendar, Heart, KeyRound, ChevronRight, Smartphone, Coffee } from 'lucide-react'
+import { Bell, LogOut, Package, Calendar, Heart, KeyRound, ChevronRight, ChevronDown, Smartphone, Coffee } from 'lucide-react'
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { clsx } from 'clsx'
@@ -93,6 +93,7 @@ export default function ProfilePage() {
   const [loggingOut,   setLoggingOut]   = useState(false)
   const [pushLoading,  setPushLoading]  = useState(false)
   const [rewardOpen,   setRewardOpen]   = useState(false)
+  const [logrosOpen,   setLogrosOpen]   = useState(false)
 
   // ── Sheets ────────────────────────────────────────────────────────────────
   const [healthOpen,   setHealthOpen]   = useState(false)
@@ -342,66 +343,144 @@ export default function ProfilePage() {
       {user?.role === 'STUDENT' && (
         <div className="mt-6">
           <p className="text-section text-stone text-[10px] uppercase tracking-widest px-6 mb-3">MIS LOGROS</p>
-          <div className="mx-4 bg-white border border-nude-border rounded-lg p-5">
+          <div className="mx-4 bg-white border border-nude-border rounded-lg overflow-hidden">
             {loading ? (
-              <Skeleton className="h-20 w-full rounded" />
+              <div className="p-5"><Skeleton className="h-20 w-full rounded" /></div>
             ) : (
               <>
-                <div className="flex items-center justify-between mb-3">
-                  <div>
-                    <p className="text-stone text-[11px] font-body">Nivel actual</p>
-                    {tierId === 'none' ? (
-                      <p className="text-noir font-body text-[15px] font-medium mt-0.5">Sin nivel aún</p>
-                    ) : (
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <p className="text-noir font-body text-[15px] font-medium">{tierInfo.label}</p>
-                        <TierBadge tierId={tierId} size="sm" />
-                      </div>
-                    )}
-                  </div>
-                  <div className="text-right">
-                    <p className="text-stone text-[11px] font-body">Clases tomadas</p>
-                    <p className="text-noir text-[22px] font-display font-light">{rewards?.totalClassesTaken ?? 0}</p>
-                  </div>
-                </div>
+                {/* ── Header siempre visible ── */}
+                <button
+                  onClick={() => setLogrosOpen((v) => !v)}
+                  className="w-full flex items-center gap-3 px-5 py-4 tap-target"
+                >
+                  {/* Mini avatar con marco actual */}
+                  <TierFrame tierId={tierId} size={44} initial={initial} />
 
-                {nextTier && (
-                  <div className="mt-1 mb-3">
-                    <div className="flex justify-between text-[10px] text-stone font-body mb-1">
-                      <span>{rewards?.totalClassesTaken ?? 0} clases</span>
-                      <span>{nextTier.minClasses} para <strong>{nextTier.label}</strong></span>
+                  <div className="flex-1 text-left">
+                    <div className="flex items-center gap-2">
+                      <p className="text-noir font-body font-medium text-[14px]">
+                        {tierId === 'none' ? 'Sin nivel aún' : tierInfo.label}
+                      </p>
+                      {tierId !== 'none' && <TierBadge tierId={tierId} size="sm" />}
                     </div>
-                    <div className="h-1.5 bg-nude-light rounded-full overflow-hidden">
+                    <p className="text-stone text-[11px] font-body mt-0.5">
+                      {rewards?.totalClassesTaken ?? 0} clases tomadas
+                      {nextTier ? ` · ${nextTier.minClasses - (rewards?.totalClassesTaken ?? 0)} para ${nextTier.label}` : ' · Nivel máximo'}
+                    </p>
+                  </div>
+
+                  <ChevronDown
+                    size={16}
+                    strokeWidth={1.5}
+                    className="text-nude-border shrink-0 transition-transform duration-300"
+                    style={{ transform: logrosOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}
+                  />
+                </button>
+
+                {/* Progress bar — always visible */}
+                {nextTier && (
+                  <div className="px-5 pb-3 -mt-1">
+                    <div className="h-1 bg-nude-light rounded-full overflow-hidden">
                       <div
                         className="h-full rounded-full transition-all duration-700"
-                        style={{ width: `${progressPct}%`, background: tierInfo.color === 'transparent' ? '#E8B4B8' : tierInfo.color }}
+                        style={{
+                          width: `${progressPct}%`,
+                          background: tierInfo.color === 'transparent' ? '#E8B4B8' : tierInfo.color,
+                        }}
                       />
                     </div>
                   </div>
                 )}
 
-                {tierId === 'prima' && (
-                  <p className="text-[11px] text-stone font-body text-center mt-1">¡Eres Prima! El nivel más alto 👑</p>
-                )}
+                {/* ── Expanded content ── */}
+                {logrosOpen && (
+                  <div className="border-t border-nude-border px-5 pt-5 pb-5 flex flex-col gap-5">
 
-                {cafeReward && (
-                  <button
-                    onClick={() => setRewardOpen(true)}
-                    className="mt-3 w-full flex items-center gap-3 px-4 py-3 rounded-lg bg-nude-light border border-nude active:scale-[0.98] transition-transform"
-                  >
-                    <Coffee size={20} strokeWidth={1.5} className="text-nude-dark shrink-0" />
-                    <div className="flex-1 text-left">
-                      <p className="text-noir text-[13px] font-body font-medium">☕ Café gratis</p>
-                      <p className="text-stone text-[11px] font-body">Toca para ver tu código QR</p>
+                    {/* Tier progression cards */}
+                    <div className="flex flex-col gap-3">
+                      <p className="text-stone text-[10px] uppercase tracking-widest font-body">Todos los niveles</p>
+                      {TIERS.filter((t) => t.id !== 'none').map((t) => {
+                        const totalTaken = rewards?.totalClassesTaken ?? 0
+                        const isUnlocked = totalTaken >= t.minClasses
+                        const isCurrent  = tierId === t.id
+                        const clsNeeded  = Math.max(0, t.minClasses - totalTaken)
+
+                        return (
+                          <div
+                            key={t.id}
+                            className="flex items-center gap-4 px-4 py-3 rounded-xl border transition-colors"
+                            style={{
+                              borderColor: isCurrent ? t.color : 'transparent',
+                              background:  isCurrent ? `${t.color}12` : '#FAFAF9',
+                            }}
+                          >
+                            {/* Frame preview */}
+                            <TierFrame
+                              tierId={isUnlocked ? t.id : 'none'}
+                              size={48}
+                              initial={initial}
+                            />
+
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <p className="text-noir font-body font-medium text-[14px]">{t.label}</p>
+                                {isCurrent && (
+                                  <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-noir text-white font-body">
+                                    ACTUAL
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-stone text-[11px] font-body mt-0.5">
+                                {t.minClasses}
+                                {t.maxClasses !== null ? `–${t.maxClasses}` : '+'} clases
+                              </p>
+                            </div>
+
+                            <div className="shrink-0 text-right">
+                              {isUnlocked ? (
+                                <span className="text-[11px] font-body" style={{ color: t.color }}>✓ Desbloqueado</span>
+                              ) : (
+                                <span className="text-stone text-[11px] font-body">
+                                  {clsNeeded} más
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        )
+                      })}
                     </div>
-                    <ChevronRight size={16} strokeWidth={1.5} className="text-nude-border shrink-0" />
-                  </button>
-                )}
 
-                {(rewards?.rewards.filter((r) => r.isRedeemed).length ?? 0) > 0 && (
-                  <p className="text-stone text-[11px] font-body mt-3 text-center">
-                    {rewards!.rewards.filter((r) => r.isRedeemed).length} café{rewards!.rewards.filter((r) => r.isRedeemed).length > 1 ? 's' : ''} canjeado{rewards!.rewards.filter((r) => r.isRedeemed).length > 1 ? 's' : ''} anteriormente ✓
-                  </p>
+                    {/* Café reward */}
+                    {cafeReward && (
+                      <button
+                        onClick={() => setRewardOpen(true)}
+                        className="w-full flex items-center gap-3 px-4 py-3 rounded-lg bg-nude-light border border-nude active:scale-[0.98] transition-transform"
+                      >
+                        <Coffee size={20} strokeWidth={1.5} className="text-nude-dark shrink-0" />
+                        <div className="flex-1 text-left">
+                          <p className="text-noir text-[13px] font-body font-medium">☕ Café gratis disponible</p>
+                          <p className="text-stone text-[11px] font-body">Toca para ver tu código QR</p>
+                        </div>
+                        <ChevronRight size={16} strokeWidth={1.5} className="text-nude-border shrink-0" />
+                      </button>
+                    )}
+
+                    {/* Hint: next reward */}
+                    {!cafeReward && (rewards?.totalClassesTaken ?? 0) < 10 && (
+                      <div className="flex items-center gap-3 px-4 py-3 bg-off-white rounded-lg border border-nude-border">
+                        <Coffee size={18} strokeWidth={1.5} className="text-stone shrink-0" />
+                        <p className="text-stone text-[12px] font-body leading-relaxed">
+                          Al llegar a <strong className="text-noir">10 clases</strong> ganarás un <strong className="text-noir">café gratis</strong> 🎉
+                        </p>
+                      </div>
+                    )}
+
+                    {(rewards?.rewards.filter((r) => r.isRedeemed).length ?? 0) > 0 && (
+                      <p className="text-stone text-[11px] font-body text-center">
+                        {rewards!.rewards.filter((r) => r.isRedeemed).length} café{rewards!.rewards.filter((r) => r.isRedeemed).length > 1 ? 's' : ''} canjeado{rewards!.rewards.filter((r) => r.isRedeemed).length > 1 ? 's' : ''} anteriormente ✓
+                      </p>
+                    )}
+                  </div>
                 )}
               </>
             )}
