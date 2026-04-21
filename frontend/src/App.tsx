@@ -23,6 +23,7 @@ const AdminClassesPage   = lazy(() => import('./pages/admin/ClassesPage'))
 const AdminStudentsPage  = lazy(() => import('./pages/admin/StudentsPage'))
 const AdminPaymentsPage  = lazy(() => import('./pages/admin/PaymentsPage'))
 const AdminCoachesPage    = lazy(() => import('./pages/admin/CoachesPage'))
+const AdminRedeemPage     = lazy(() => import('./pages/admin/RedeemPage'))
 const CoachDashboardPage  = lazy(() => import('./pages/coach/DashboardPage'))
 const CoachAttendancePage = lazy(() => import('./pages/coach/AttendancePage'))
 const OnboardingOverlay   = lazy(() => import('./components/OnboardingOverlay'))
@@ -104,6 +105,7 @@ export default function App() {
             <Route path="students"  element={<AdminStudentsPage />} />
             <Route path="coaches"   element={<AdminCoachesPage />} />
             <Route path="payments"  element={<AdminPaymentsPage />} />
+            <Route path="redeem"    element={<AdminRedeemPage />} />
           </Route>
 
           {/* Coach */}

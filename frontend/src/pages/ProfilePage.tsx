@@ -1,17 +1,21 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Bell, LogOut, Package, Calendar, Heart, KeyRound, ChevronRight, Smartphone } from 'lucide-react'
+import { Bell, LogOut, Package, Calendar, Heart, KeyRound, ChevronRight, Smartphone, Coffee } from 'lucide-react'
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { clsx } from 'clsx'
-import { authApi, packagesApi, paymentsApi, pushApi, profileApi } from '../api'
+import { QRCodeSVG } from 'qrcode.react'
+import { authApi, packagesApi, paymentsApi, pushApi, profileApi, rewardsApi } from '../api'
 import { useStore } from '../store/useStore'
 import { usePush } from '../hooks/usePush'
 import { Skeleton } from '../components/ui/Skeleton'
 import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
 import { BottomSheet } from '../components/ui/BottomSheet'
-import type { Subscription, PaymentHistory, HealthProfile } from '../types'
+import { TierFrame } from '../components/TierFrame'
+import { TierBadge } from '../components/TierBadge'
+import type { Subscription, PaymentHistory, HealthProfile, MyRewardsData, TierId } from '../types'
+import { TIERS, getTierInfo } from '../types'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function formatMXN(amount: number) {
@@ -84,9 +88,11 @@ export default function ProfilePage() {
   const [subscription, setSubscription] = useState<Subscription | null>(null)
   const [payments,     setPayments]     = useState<PaymentHistory[]>([])
   const [health,       setHealth]       = useState<HealthProfile | null>(null)
+  const [rewards,      setRewards]      = useState<MyRewardsData | null>(null)
   const [loading,      setLoading]      = useState(true)
   const [loggingOut,   setLoggingOut]   = useState(false)
   const [pushLoading,  setPushLoading]  = useState(false)
+  const [rewardOpen,   setRewardOpen]   = useState(false)
 
   // ── Sheets ────────────────────────────────────────────────────────────────
   const [healthOpen,   setHealthOpen]   = useState(false)
@@ -114,13 +120,15 @@ export default function ProfilePage() {
   // ── Load data ─────────────────────────────────────────────────────────────
   const fetchData = useCallback(async () => {
     try {
-      const [subRes, payRes, healthRes] = await Promise.all([
+      const [subRes, payRes, healthRes, rewardsRes] = await Promise.all([
         packagesApi.mySubscription().catch(() => null),
         paymentsApi.history().catch(() => null),
         profileApi.getHealth().catch(() => null),
+        rewardsApi.mine().catch(() => null),
       ])
       setSubscription((subRes?.data?.subscription as Subscription) ?? null)
       setPayments(((payRes?.data?.data as PaymentHistory[]) ?? []).slice(0, 3))
+      if (rewardsRes?.data) setRewards(rewardsRes.data as MyRewardsData)
 
       const h = healthRes?.data as HealthProfile | null
       if (h) {
@@ -214,7 +222,18 @@ export default function ProfilePage() {
     navigate('/login', { replace: true })
   }
 
-  const initial = user?.name?.charAt(0).toUpperCase() ?? '?'
+  const initial  = user?.name?.charAt(0).toUpperCase() ?? '?'
+  const tierId   = (rewards?.tier ?? 'none') as TierId
+  const tierInfo = getTierInfo(tierId)
+
+  // Next tier progress
+  const nextTier = TIERS.find((t) => t.minClasses > (rewards?.totalClassesTaken ?? 0) && t.id !== 'none')
+  const progressPct = nextTier
+    ? Math.round(((rewards?.totalClassesTaken ?? 0) / nextTier.minClasses) * 100)
+    : 100
+
+  // Unredeemed café reward
+  const cafeReward = rewards?.rewards.find((r) => r.type === 'CAFE_FREE' && !r.isRedeemed) ?? null
 
   // Detect if app is running as installed PWA
   const isAppInstalled =
@@ -244,8 +263,9 @@ export default function ProfilePage() {
           </div>
         ) : (
           <>
-            <div className="w-[72px] h-[72px] rounded-full bg-nude-light border-2 border-nude flex items-center justify-center">
-              <span className="text-hero text-[28px] text-nude-dark font-display">{initial}</span>
+            <div className="flex items-end gap-3">
+              <TierFrame tierId={tierId} size={72} initial={initial} />
+              {tierId !== 'none' && <TierBadge tierId={tierId} size="md" />}
             </div>
             <h1 className="text-hero text-[28px] text-noir mt-4 leading-tight">{user?.name}</h1>
             <p className="text-label text-stone mt-1">{user?.email}</p>
@@ -317,6 +337,77 @@ export default function ProfilePage() {
           ))
         )}
       </div>
+
+      {/* ── Mis Logros ─────────────────────────────────────────────────────── */}
+      {user?.role === 'STUDENT' && (
+        <div className="mt-6">
+          <p className="text-section text-stone text-[10px] uppercase tracking-widest px-6 mb-3">MIS LOGROS</p>
+          <div className="mx-4 bg-white border border-nude-border rounded-lg p-5">
+            {loading ? (
+              <Skeleton className="h-20 w-full rounded" />
+            ) : (
+              <>
+                <div className="flex items-center justify-between mb-3">
+                  <div>
+                    <p className="text-stone text-[11px] font-body">Nivel actual</p>
+                    {tierId === 'none' ? (
+                      <p className="text-noir font-body text-[15px] font-medium mt-0.5">Sin nivel aún</p>
+                    ) : (
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <p className="text-noir font-body text-[15px] font-medium">{tierInfo.label}</p>
+                        <TierBadge tierId={tierId} size="sm" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="text-right">
+                    <p className="text-stone text-[11px] font-body">Clases tomadas</p>
+                    <p className="text-noir text-[22px] font-display font-light">{rewards?.totalClassesTaken ?? 0}</p>
+                  </div>
+                </div>
+
+                {nextTier && (
+                  <div className="mt-1 mb-3">
+                    <div className="flex justify-between text-[10px] text-stone font-body mb-1">
+                      <span>{rewards?.totalClassesTaken ?? 0} clases</span>
+                      <span>{nextTier.minClasses} para <strong>{nextTier.label}</strong></span>
+                    </div>
+                    <div className="h-1.5 bg-nude-light rounded-full overflow-hidden">
+                      <div
+                        className="h-full rounded-full transition-all duration-700"
+                        style={{ width: `${progressPct}%`, background: tierInfo.color === 'transparent' ? '#E8B4B8' : tierInfo.color }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {tierId === 'prima' && (
+                  <p className="text-[11px] text-stone font-body text-center mt-1">¡Eres Prima! El nivel más alto 👑</p>
+                )}
+
+                {cafeReward && (
+                  <button
+                    onClick={() => setRewardOpen(true)}
+                    className="mt-3 w-full flex items-center gap-3 px-4 py-3 rounded-lg bg-nude-light border border-nude active:scale-[0.98] transition-transform"
+                  >
+                    <Coffee size={20} strokeWidth={1.5} className="text-nude-dark shrink-0" />
+                    <div className="flex-1 text-left">
+                      <p className="text-noir text-[13px] font-body font-medium">☕ Café gratis</p>
+                      <p className="text-stone text-[11px] font-body">Toca para ver tu código QR</p>
+                    </div>
+                    <ChevronRight size={16} strokeWidth={1.5} className="text-nude-border shrink-0" />
+                  </button>
+                )}
+
+                {(rewards?.rewards.filter((r) => r.isRedeemed).length ?? 0) > 0 && (
+                  <p className="text-stone text-[11px] font-body mt-3 text-center">
+                    {rewards!.rewards.filter((r) => r.isRedeemed).length} café{rewards!.rewards.filter((r) => r.isRedeemed).length > 1 ? 's' : ''} canjeado{rewards!.rewards.filter((r) => r.isRedeemed).length > 1 ? 's' : ''} anteriormente ✓
+                  </p>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* ── Salud ──────────────────────────────────────────────────────── */}
       <div className="mt-6">
@@ -403,6 +494,38 @@ export default function ProfilePage() {
       </div>
 
       <p className="text-stone text-xs text-center py-6">v1.0.0</p>
+
+      {/* ════════════════════════════════════════════════════════════════
+          BOTTOM SHEET — QR Café gratis
+      ════════════════════════════════════════════════════════════════ */}
+      {cafeReward && (
+        <BottomSheet isOpen={rewardOpen} onClose={() => setRewardOpen(false)} title="Tu café gratis">
+          <div className="flex flex-col items-center gap-5 py-2">
+            <div className="w-10 h-10 rounded-full bg-nude-light flex items-center justify-center">
+              <Coffee size={20} strokeWidth={1.5} className="text-nude-dark" />
+            </div>
+            <p className="text-stone text-[13px] font-body text-center leading-relaxed">
+              Muestra este código al staff de SODI para canjear tu café gratis.
+              Solo puede usarse una vez.
+            </p>
+            <div className="p-4 bg-white border-2 border-nude rounded-xl">
+              <QRCodeSVG
+                value={cafeReward.code}
+                size={200}
+                level="M"
+                bgColor="#FFFFFF"
+                fgColor="#0D0D0D"
+              />
+            </div>
+            <p className="text-stone text-[10px] font-body tracking-widest text-center uppercase">
+              {cafeReward.code.slice(0, 8).toUpperCase()}
+            </p>
+            <p className="text-stone text-[11px] font-body text-center">
+              Premio obtenido al llegar a 10 clases 🎉
+            </p>
+          </div>
+        </BottomSheet>
+      )}
 
       {/* ════════════════════════════════════════════════════════════════
           BOTTOM SHEET — Perfil de salud

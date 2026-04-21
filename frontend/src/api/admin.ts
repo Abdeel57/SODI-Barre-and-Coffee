@@ -62,4 +62,8 @@ export const adminApi = {
   sendPush: (data: { target: 'all' | 'inactive'; title: string; body: string }) =>
     api.post('/api/push/send', data),
   clearPushTokens: () => api.delete('/api/admin/push-tokens'),
+
+  // Rewards
+  lookupReward: (code: string) => api.get('/api/admin/rewards/lookup', { params: { code } }),
+  redeemReward: (code: string) => api.post('/api/admin/rewards/redeem', { code }),
 }

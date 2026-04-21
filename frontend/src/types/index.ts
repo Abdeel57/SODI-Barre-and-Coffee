@@ -122,3 +122,47 @@ export interface PaymentHistory {
   createdAt: string
   packageName: string | null
 }
+
+// ─── Tiers ────────────────────────────────────────────────────────────────────
+export type TierId = 'none' | 'plie' | 'arabesque' | 'attitude' | 'prima'
+
+export interface TierInfo {
+  id:         TierId
+  label:      string
+  minClasses: number
+  maxClasses: number | null
+  color:      string       // ring color
+  textColor:  string
+  bg:         string       // badge background
+}
+
+export const TIERS: TierInfo[] = [
+  { id: 'none',      label: '—',         minClasses: 0,  maxClasses: 0,    color: 'transparent',  textColor: '#9E9E9E', bg: '#F5F5F5'  },
+  { id: 'plie',      label: 'Plié',      minClasses: 1,  maxClasses: 9,    color: '#E8B4B8',      textColor: '#8B5E63', bg: '#FDF0F1'  },
+  { id: 'arabesque', label: 'Arabesque', minClasses: 10, maxClasses: 24,   color: '#C9A882',      textColor: '#7A5C3A', bg: '#F2EBE1'  },
+  { id: 'attitude',  label: 'Attitude',  minClasses: 25, maxClasses: 49,   color: '#D4AF37',      textColor: '#7A6010', bg: '#FBF5DC'  },
+  { id: 'prima',     label: 'Prima',     minClasses: 50, maxClasses: null, color: '#0D0D0D',      textColor: '#FFFFFF', bg: '#0D0D0D'  },
+]
+
+export function getTierInfo(tierId: TierId): TierInfo {
+  return TIERS.find((t) => t.id === tierId) ?? TIERS[0]
+}
+
+// ─── Rewards ──────────────────────────────────────────────────────────────────
+export type RewardType = 'CAFE_FREE'
+
+export interface Reward {
+  id:         string
+  type:       RewardType
+  code:       string
+  isRedeemed: boolean
+  redeemedAt: string | null
+  createdAt:  string
+}
+
+export interface MyRewardsData {
+  totalClassesTaken: number
+  tier:              TierId
+  tierLabel:         string
+  rewards:           Reward[]
+}

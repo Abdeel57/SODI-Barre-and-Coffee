@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { prisma } from '../lib/prisma'
 import { auth } from '../middleware/auth'
 import { isCoach } from '../middleware/isCoach'
+import { onClassAttended, onClassUnattended } from '../services/rewards'
 
 const router = Router()
 router.use(auth, isCoach)
@@ -118,6 +119,14 @@ router.patch('/classes/:classId/attendance', async (req: Request, res: Response,
   try {
     const body = attendanceSchema.parse(req.body)
 
+    // Fetch current statuses to detect actual transitions
+    const bookingIds = body.attendance.map((a) => a.bookingId)
+    const currentBookings = await prisma.booking.findMany({
+      where:  { id: { in: bookingIds } },
+      select: { id: true, status: true, userId: true },
+    })
+    const currentMap = new Map(currentBookings.map((b) => [b.id, b]))
+
     await Promise.all(
       body.attendance.map(({ bookingId, attended }) =>
         prisma.booking.update({
@@ -126,6 +135,18 @@ router.patch('/classes/:classId/attendance', async (req: Request, res: Response,
         }),
       ),
     )
+
+    // Fire reward triggers for status transitions (fire-and-forget)
+    for (const { bookingId, attended } of body.attendance) {
+      const current = currentMap.get(bookingId)
+      if (!current) continue
+
+      if (attended && current.status === 'CONFIRMED') {
+        onClassAttended(current.userId).catch(() => null)
+      } else if (!attended && current.status === 'ATTENDED') {
+        onClassUnattended(current.userId).catch(() => null)
+      }
+    }
 
     return res.json({ ok: true, updated: body.attendance.length })
   } catch (err) {

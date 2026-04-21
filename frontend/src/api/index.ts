@@ -147,6 +147,10 @@ export const pushApi = {
   test:        () => api.post('/api/push/test'),
 }
 
+export const rewardsApi = {
+  mine: () => api.get('/api/rewards/mine'),
+}
+
 export const profileApi = {
   getHealth:          ()                        => api.get('/api/profile/health'),
   updateHealth:       (data: HealthProfileData) => api.put('/api/profile/health', data),

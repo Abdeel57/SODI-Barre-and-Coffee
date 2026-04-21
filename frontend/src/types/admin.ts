@@ -52,6 +52,9 @@ export interface AdminStudent {
   role: 'STUDENT' | 'COACH' | 'ADMIN'
   createdAt: string
   totalBookings: number
+  totalClassesTaken: number
+  tier: string
+  tierLabel: string
   subscription: {
     packageName: string
     classesLeft: number | null

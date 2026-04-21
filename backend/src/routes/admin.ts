@@ -5,6 +5,7 @@ import { prisma } from '../lib/prisma'
 import { auth } from '../middleware/auth'
 import { isAdmin } from '../middleware/isAdmin'
 import { createError } from '../middleware/errorHandler'
+import { getTier } from '../services/rewards'
 
 const router = Router()
 
@@ -135,6 +136,7 @@ router.get('/students', async (req: Request, res: Response, next: NextFunction) 
           phone: true,
           role: true,
           createdAt: true,
+          totalClassesTaken: true,
           subscription: {
             select: {
               classesLeft: true,
@@ -152,23 +154,29 @@ router.get('/students', async (req: Request, res: Response, next: NextFunction) 
       prisma.user.count({ where }),
     ])
 
-    const data = students.map((s) => ({
-      id: s.id,
-      name: s.name,
-      email: s.email,
-      phone: s.phone,
-      role: s.role,
-      createdAt: s.createdAt,
-      totalBookings: s._count.bookings,
-      subscription: s.subscription
-        ? {
-            packageName: s.subscription.package.name,
-            classesLeft: s.subscription.classesLeft,
-            expiresAt: s.subscription.expiresAt,
-            isActive: s.subscription.isActive,
-          }
-        : null,
-    }))
+    const data = students.map((s) => {
+      const tier = getTier(s.totalClassesTaken)
+      return {
+        id: s.id,
+        name: s.name,
+        email: s.email,
+        phone: s.phone,
+        role: s.role,
+        createdAt: s.createdAt,
+        totalBookings: s._count.bookings,
+        totalClassesTaken: s.totalClassesTaken,
+        tier: tier.id,
+        tierLabel: tier.label,
+        subscription: s.subscription
+          ? {
+              packageName: s.subscription.package.name,
+              classesLeft: s.subscription.classesLeft,
+              expiresAt: s.subscription.expiresAt,
+              isActive: s.subscription.isActive,
+            }
+          : null,
+      }
+    })
 
     res.json({
       data,
@@ -610,6 +618,73 @@ router.get('/payments', async (req: Request, res: Response, next: NextFunction) 
     })
   } catch (err) {
     next(err)
+  }
+})
+
+// ─── POST /api/admin/rewards/redeem ──────────────────────────────────────────
+const redeemSchema = z.object({
+  code: z.string().min(1, 'Código requerido'),
+})
+
+router.post('/rewards/redeem', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { code } = redeemSchema.parse(req.body)
+
+    const reward = await prisma.reward.findUnique({
+      where:  { code },
+      include: { user: { select: { id: true, name: true, email: true, totalClassesTaken: true } } },
+    })
+
+    if (!reward) return next(createError(404, 'Código no encontrado'))
+    if (reward.isRedeemed) {
+      return res.status(409).json({
+        error: 'Este código ya fue canjeado',
+        redeemedAt: reward.redeemedAt,
+        user: reward.user,
+      })
+    }
+
+    const updated = await prisma.reward.update({
+      where: { id: reward.id },
+      data:  { isRedeemed: true, redeemedAt: new Date() },
+    })
+
+    return res.json({
+      ok: true,
+      reward: updated,
+      user: reward.user,
+      tierLabel: getTier(reward.user.totalClassesTaken).label,
+    })
+  } catch (err) {
+    return next(err)
+  }
+})
+
+// ─── GET /api/admin/rewards/lookup ───────────────────────────────────────────
+// Preview a reward code before redeeming (scan step)
+router.get('/rewards/lookup', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const code = req.query['code'] as string | undefined
+    if (!code) return next(createError(400, 'Código requerido'))
+
+    const reward = await prisma.reward.findUnique({
+      where:  { code },
+      include: { user: { select: { id: true, name: true, email: true, totalClassesTaken: true } } },
+    })
+
+    if (!reward) return next(createError(404, 'Código no encontrado'))
+
+    return res.json({
+      id:         reward.id,
+      type:       reward.type,
+      isRedeemed: reward.isRedeemed,
+      redeemedAt: reward.redeemedAt,
+      createdAt:  reward.createdAt,
+      user:       reward.user,
+      tierLabel:  getTier(reward.user.totalClassesTaken).label,
+    })
+  } catch (err) {
+    return next(err)
   }
 })
 

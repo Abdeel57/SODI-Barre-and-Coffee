@@ -8,6 +8,8 @@ import { Skeleton } from '../../components/ui/Skeleton'
 import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
 import { BottomSheet } from '../../components/ui/BottomSheet'
+import { TierBadge } from '../../components/TierBadge'
+import type { TierId } from '../../types'
 import type { AdminStudent, DeleteBlockedError } from '../../types/admin'
 
 // ─── Role badge helpers ───────────────────────────────────────────────────────
@@ -417,7 +419,12 @@ function StudentCard({
           </span>
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-label font-medium text-noir truncate">{student.name}</p>
+          <div className="flex items-center gap-2">
+            <p className="text-label font-medium text-noir truncate">{student.name}</p>
+            {student.tier && student.tier !== 'none' && (
+              <TierBadge tierId={student.tier as TierId} size="sm" />
+            )}
+          </div>
           <p className="text-stone text-xs truncate">{student.email}</p>
         </div>
         <div className="text-right shrink-0 flex flex-col items-end gap-1">
@@ -447,7 +454,20 @@ function StudentCard({
         <div className="border-t border-nude-border px-4 pb-4 pt-3">
           <div className="grid grid-cols-2 gap-y-2 mb-3">
             <div>
-              <p className="text-stone text-xs">Total de clases</p>
+              <p className="text-stone text-xs">Clases tomadas</p>
+              <p className="text-label text-noir">{student.totalClassesTaken ?? 0}</p>
+            </div>
+            <div>
+              <p className="text-stone text-xs">Nivel</p>
+              <div className="mt-0.5">
+                {student.tier && student.tier !== 'none'
+                  ? <TierBadge tierId={student.tier as TierId} size="sm" />
+                  : <p className="text-stone text-xs">—</p>
+                }
+              </div>
+            </div>
+            <div>
+              <p className="text-stone text-xs">Total reservas</p>
               <p className="text-label text-noir">{student.totalBookings}</p>
             </div>
             <div>
