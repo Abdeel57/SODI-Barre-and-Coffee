@@ -414,12 +414,14 @@ export default function ProfilePage() {
                               background:  isCurrent ? `${t.color}12` : '#FAFAF9',
                             }}
                           >
-                            {/* Frame preview */}
-                            <TierFrame
-                              tierId={isUnlocked ? t.id : 'none'}
-                              size={48}
-                              initial={initial}
-                            />
+                            {/* Frame preview — always show the ring, dimmed if locked */}
+                            <div style={{ opacity: isUnlocked ? 1 : 0.35 }}>
+                              <TierFrame
+                                tierId={t.id}
+                                size={48}
+                                initial={initial}
+                              />
+                            </div>
 
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2">

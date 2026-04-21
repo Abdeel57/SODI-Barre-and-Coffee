@@ -64,17 +64,13 @@ export function TierFrame({ tierId, size = 72, initial, className = '' }: TierFr
           cx={center} cy={center} r={radius}
           fill="none"
           stroke={tier.color}
-          strokeWidth={tierId === 'prima' ? 2.5 : 2}
-          strokeDasharray={
-            tierId === 'plie'      ? '4 4'  :
-            tierId === 'arabesque' ? 'none' :
-            'none'
-          }
+          strokeWidth={tierId === 'prima' ? 3 : 2.5}
+          strokeDasharray={tierId === 'plie' ? '5 3' : 'none'}
         />
 
-        {/* Arabesque decorative dots */}
+        {/* Arabesque decorative dots — placed on the ring itself */}
         {tierId === 'arabesque' && (
-          <ArabesqueDots cx={center} cy={center} r={radius + 3} />
+          <ArabesqueDots cx={center} cy={center} r={radius} />
         )}
 
         {/* Prima gold accent dots at cardinal points */}
