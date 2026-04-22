@@ -15,22 +15,22 @@ export interface TierFrameConfig {
 
 export const TIER_FRAME_CONFIG: Record<string, TierFrameConfig> = {
   plie: {
-    scale:   1.52,
-    offsetX: -8,
+    scale:   1.51,
+    offsetX: -7,
     offsetY: 9,
   },
   arabesque: {
-    scale:   1.36,
-    offsetX: -2,
-    offsetY: 6,
+    scale:   1.37,
+    offsetX: -3,
+    offsetY: 5,
   },
   attitude: {
-    scale:   1.37,
-    offsetX: -2,
-    offsetY: 6,
+    scale:   1.41,
+    offsetX: -3,
+    offsetY: 7,
   },
   prima: {
-    scale:   1.28,
+    scale:   1.29,
     offsetX: 0,
     offsetY: 0,
   },
