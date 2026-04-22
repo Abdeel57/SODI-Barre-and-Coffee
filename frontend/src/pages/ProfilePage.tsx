@@ -540,10 +540,10 @@ export default function ProfilePage() {
                             }}
                           >
                             {/* Frame preview with user's photo inside */}
-                            <div style={{ opacity: isUnlocked ? 1 : 0.35 }}>
+                            <div style={{ opacity: isUnlocked ? 1 : 0.35, flexShrink: 0 }}>
                               <TierFrame
                                 tierId={t.id}
-                                size={48}
+                                size={68}
                                 initial={initial}
                                 avatarUrl={avatarData}
                                 iconUrl={TIER_ICONS[t.id] ?? undefined}

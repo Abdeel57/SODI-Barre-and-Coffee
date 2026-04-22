@@ -170,9 +170,9 @@ function FrameEditor({ tierId, label, avatar, cfg, onChange }: FrameEditorProps)
         </p>
         <div style={{ display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
           {[
-            { size: 48,  label: 'Lista logros' },
-            { size: 72,  label: 'Perfil (actual)' },
-            { size: 96,  label: 'Perfil (grande)' },
+            { size: 68,  label: 'Lista logros' },
+            { size: 80,  label: 'Perfil foto' },
+            { size: 96,  label: 'Perfil grande' },
           ].map(({ size: s, label: lbl }) => {
             const EDITOR_REF = 160
             const ratio     = s / EDITOR_REF
