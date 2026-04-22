@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback } from 'react'
 import { TIER_ICONS } from '../types'
 import type { TierId } from '../types'
+import { TIER_FRAME_CONFIG } from '../components/tierFrameConfig'
 
 const CANVAS = 260
 const PHOTO  = 160
@@ -23,11 +24,12 @@ const TIERS: { id: TierId; label: string }[] = [
 interface Cfg { scale: number; offsetX: number; offsetY: number }
 type AllCfgs = Record<string, Cfg>
 
+// Carga los valores actuales guardados en el archivo — no valores hardcodeados
 const DEFAULT_CFGS: AllCfgs = {
-  plie:      { scale: 1.15, offsetX: 0, offsetY: 0 },
-  arabesque: { scale: 1.15, offsetX: 0, offsetY: 0 },
-  attitude:  { scale: 1.12, offsetX: 0, offsetY: 0 },
-  prima:     { scale: 1.08, offsetX: 0, offsetY: 0 },
+  plie:      TIER_FRAME_CONFIG['plie']      ?? { scale: 1.15, offsetX: 0, offsetY: 0 },
+  arabesque: TIER_FRAME_CONFIG['arabesque'] ?? { scale: 1.15, offsetX: 0, offsetY: 0 },
+  attitude:  TIER_FRAME_CONFIG['attitude']  ?? { scale: 1.12, offsetX: 0, offsetY: 0 },
+  prima:     TIER_FRAME_CONFIG['prima']     ?? { scale: 1.08, offsetX: 0, offsetY: 0 },
 }
 
 interface FrameEditorProps {
