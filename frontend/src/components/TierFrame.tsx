@@ -26,10 +26,11 @@ function ArabesqueDots({ cx, cy, r }: { cx: number; cy: number; r: number }) {
 }
 
 export function TierFrame({ tierId, size = 72, initial, avatarUrl, iconUrl, className = '' }: TierFrameProps) {
-  const tier   = getTierInfo(tierId)
-  const pad    = Math.round(size * 0.1)   // ~10% padding so photo sits inside the frame ring
-  const center = size / 2
-  const radius = center - 3
+  const tier    = getTierInfo(tierId)
+  // PNG frames need more padding so the photo clearly sits inside the ring
+  const pad     = iconUrl ? Math.round(size * 0.18) : Math.round(size * 0.08)
+  const center  = size / 2
+  const radius  = center - 3
 
   // ── No tier: plain circle (photo or initial) ──────────────────────────────────
   if (tierId === 'none') {
