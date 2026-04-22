@@ -49,11 +49,17 @@ export function TierFrame({ tierId, size = 72, initial, avatarUrl, iconUrl, clas
 
   // ── PNG frame mode ────────────────────────────────────────────────────────────
   if (iconUrl) {
-    const cfg       = TIER_FRAME_CONFIG[tierId] ?? { scale: 1.1, offsetX: 0, offsetY: 0 }
-    const frameSize = size * cfg.scale
+    // offsetX/offsetY were calibrated in the editor at EDITOR_REF=160px photo size.
+    // Scale them proportionally so they look the same at any size.
+    const EDITOR_REF = 160
+    const cfg        = TIER_FRAME_CONFIG[tierId] ?? { scale: 1.1, offsetX: 0, offsetY: 0 }
+    const ratio      = size / EDITOR_REF
+    const frameSize  = size * cfg.scale
+    const ox         = cfg.offsetX * ratio
+    const oy         = cfg.offsetY * ratio
 
     return (
-      <div className={`relative ${className}`} style={{ width: size, height: size }}>
+      <div className={`relative ${className}`} style={{ width: size, height: size, overflow: 'visible' }}>
         {/* Photo fills the full circle */}
         <div
           className="absolute inset-0 rounded-full overflow-hidden flex items-center justify-center"
@@ -75,7 +81,7 @@ export function TierFrame({ tierId, size = 72, initial, avatarUrl, iconUrl, clas
             height:        frameSize,
             top:           '50%',
             left:          '50%',
-            transform:     `translate(calc(-50% + ${cfg.offsetX}px), calc(-50% + ${cfg.offsetY}px))`,
+            transform:     `translate(calc(-50% + ${ox}px), calc(-50% + ${oy}px))`,
             objectFit:     'contain',
             zIndex:        1,
             pointerEvents: 'none',
