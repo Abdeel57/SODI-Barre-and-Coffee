@@ -163,6 +163,51 @@ function FrameEditor({ tierId, label, avatar, cfg, onChange }: FrameEditorProps)
         </div>
       </div>
 
+      {/* Previews en tamaños reales de la app */}
+      <div style={{ width: '100%', borderTop: '1px solid #f0f0f0', paddingTop: 12 }}>
+        <p style={{ margin: '0 0 10px', fontSize: 11, color: '#888', fontWeight: 600 }}>
+          Vista previa en tamaños reales de la app:
+        </p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
+          {[
+            { size: 48,  label: 'Lista logros' },
+            { size: 72,  label: 'Perfil (actual)' },
+            { size: 96,  label: 'Perfil (grande)' },
+          ].map(({ size: s, label: lbl }) => {
+            const EDITOR_REF = 160
+            const ratio     = s / EDITOR_REF
+            const frameSize = s * cfg.scale
+            const ox        = cfg.offsetX * ratio
+            const oy        = cfg.offsetY * ratio
+            const iconUrl   = TIER_ICONS[tierId]
+            return (
+              <div key={s} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                <div style={{ position: 'relative', width: s, height: s, overflow: 'visible' }}>
+                  <div style={{
+                    position: 'absolute', inset: 0,
+                    borderRadius: '50%', overflow: 'hidden', background: '#F2EBE1',
+                  }}>
+                    <img src={avatar} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
+                  </div>
+                  {iconUrl && (
+                    <img src={iconUrl} alt="" style={{
+                      position:  'absolute',
+                      width:     frameSize, height: frameSize,
+                      top: '50%', left: '50%',
+                      transform: `translate(calc(-50% + ${ox}px), calc(-50% + ${oy}px))`,
+                      objectFit: 'contain',
+                      zIndex:    1,
+                      pointerEvents: 'none',
+                    }} />
+                  )}
+                </div>
+                <span style={{ fontSize: 10, color: '#aaa' }}>{lbl} ({s}px)</span>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
       <p style={{ margin: 0, fontSize: 11, color: '#aaa' }}>También puedes arrastrar el marco con el mouse</p>
 
       {/* Reset individual */}
