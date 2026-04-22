@@ -10,15 +10,14 @@ interface TierFrameProps {
   className?: string
 }
 
-// ─── How much larger the PNG frame renders vs the photo circle ────────────────
-// Plié/Arabesque have thin rings → scale up so the ring clearly sits outside
-// Attitude has a moderate wreath → slight scale
-// Prima has a thick wreath → no scale needed, fills naturally
-const FRAME_SCALE: Record<string, number> = {
-  plie:      1.28,
-  arabesque: 1.22,
-  attitude:  1.14,
-  prima:     1.06,
+// ─── Extra size (px) the PNG frame extends beyond the photo on each side ──────
+// These values match each PNG's decorative ring/wreath position so it sits
+// visibly at the photo edge without covering too much of the face area.
+const FRAME_OVERHANG: Record<string, number> = {
+  plie:      6,   // thin ring + single flower: just peek outside
+  arabesque: 6,   // thin ring + scattered buds: same
+  attitude:  4,   // blue flower wreath: moderate overhang
+  prima:     2,   // thick rose wreath: almost no overhang needed
 }
 
 // ─── SVG dots for Arabesque (fallback without PNG) ───────────────────────────
@@ -58,13 +57,12 @@ export function TierFrame({ tierId, size = 72, initial, avatarUrl, iconUrl, clas
 
   // ── PNG frame mode ────────────────────────────────────────────────────────────
   if (iconUrl) {
-    const scale      = FRAME_SCALE[tierId] ?? 1.1
-    const frameSize  = size * scale
-    const frameOffset = (frameSize - size) / 2   // how far frame extends beyond photo edge
+    const overhang   = FRAME_OVERHANG[tierId] ?? 4
+    const frameSize  = size + overhang * 2   // frame is slightly larger than photo
 
     return (
       <div className={`relative ${className}`} style={{ width: size, height: size }}>
-        {/* Photo / initial fills the full circle */}
+        {/* Photo fills the full circle */}
         <div
           className="absolute inset-0 rounded-full overflow-hidden flex items-center justify-center"
           style={{ background: '#F2EBE1' }}
@@ -75,18 +73,18 @@ export function TierFrame({ tierId, size = 72, initial, avatarUrl, iconUrl, clas
           }
         </div>
 
-        {/* PNG frame — scaled up and centered so the ring wraps around the photo edge */}
+        {/* PNG frame: centered over the photo, extends `overhang`px beyond edge */}
         <img
           src={iconUrl}
           alt=""
           style={{
-            position:    'absolute',
-            width:       frameSize,
-            height:      frameSize,
-            top:         -frameOffset,
-            left:        -frameOffset,
-            objectFit:   'contain',
-            zIndex:      1,
+            position:      'absolute',
+            width:         frameSize,
+            height:        frameSize,
+            top:           -overhang,
+            left:          -overhang,
+            objectFit:     'contain',
+            zIndex:        1,
             pointerEvents: 'none',
           }}
         />
