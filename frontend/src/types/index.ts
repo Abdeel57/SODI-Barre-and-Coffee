@@ -144,6 +144,14 @@ export const TIERS: TierInfo[] = [
   { id: 'prima',     label: 'Prima',     minClasses: 50, maxClasses: null, color: '#0D0D0D',      textColor: '#FFFFFF', bg: '#0D0D0D'  },
 ]
 
+export const TIER_ICONS: Record<TierId, string | null> = {
+  none:      null,
+  plie:      '/tiers/plie.png',
+  arabesque: '/tiers/arabesque.png',
+  attitude:  '/tiers/attitude.png',
+  prima:     '/tiers/prima.png',
+}
+
 export function getTierInfo(tierId: TierId): TierInfo {
   return TIERS.find((t) => t.id === tierId) ?? TIERS[0]
 }

@@ -3,8 +3,9 @@ import { getTierInfo } from '../types'
 
 interface TierFrameProps {
   tierId: TierId
-  size?: number      // diameter in px, default 72
-  initial: string    // letter inside avatar
+  size?: number       // diameter in px, default 72
+  initial: string     // letter inside avatar (shown when no iconUrl)
+  iconUrl?: string    // optional image to show instead of the letter
   className?: string
 }
 
@@ -23,7 +24,7 @@ function ArabesqueDots({ cx, cy, r }: { cx: number; cy: number; r: number }) {
   )
 }
 
-export function TierFrame({ tierId, size = 72, initial, className = '' }: TierFrameProps) {
+export function TierFrame({ tierId, size = 72, initial, iconUrl, className = '' }: TierFrameProps) {
   const tier   = getTierInfo(tierId)
   const center = size / 2
   const pad    = 4
@@ -32,10 +33,13 @@ export function TierFrame({ tierId, size = 72, initial, className = '' }: TierFr
   if (tierId === 'none') {
     return (
       <div
-        className={`rounded-full bg-nude-light border-2 border-nude flex items-center justify-center ${className}`}
+        className={`rounded-full bg-nude-light border-2 border-nude flex items-center justify-center overflow-hidden ${className}`}
         style={{ width: size, height: size }}
       >
-        <span className="font-display text-nude-dark" style={{ fontSize: size * 0.38 }}>{initial}</span>
+        {iconUrl
+          ? <img src={iconUrl} alt="" className="w-full h-full object-cover" />
+          : <span className="font-display text-nude-dark" style={{ fontSize: size * 0.38 }}>{initial}</span>
+        }
       </div>
     )
   }
@@ -44,21 +48,21 @@ export function TierFrame({ tierId, size = 72, initial, className = '' }: TierFr
     <div className={`relative ${className}`} style={{ width: size, height: size }}>
       {/* Avatar circle — rendered first so the SVG ring appears on top */}
       <div
-        className="absolute rounded-full flex items-center justify-center"
+        className="absolute rounded-full flex items-center justify-center overflow-hidden"
         style={{
           inset: pad,
           background: tierId === 'prima' ? '#0D0D0D' : '#F2EBE1',
         }}
       >
-        <span
-          className="font-display"
-          style={{
-            fontSize: (size - pad * 2) * 0.38,
-            color: tier.textColor,
-          }}
-        >
-          {initial}
-        </span>
+        {iconUrl
+          ? <img src={iconUrl} alt="" className="w-full h-full object-cover" />
+          : <span
+              className="font-display"
+              style={{ fontSize: (size - pad * 2) * 0.38, color: tier.textColor }}
+            >
+              {initial}
+            </span>
+        }
       </div>
 
       {/* SVG ring — rendered last so it sits on top of the avatar */}

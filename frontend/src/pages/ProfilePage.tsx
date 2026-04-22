@@ -15,7 +15,7 @@ import { BottomSheet } from '../components/ui/BottomSheet'
 import { TierFrame } from '../components/TierFrame'
 import { TierBadge } from '../components/TierBadge'
 import type { Subscription, PaymentHistory, HealthProfile, MyRewardsData, TierId } from '../types'
-import { TIERS, getTierInfo } from '../types'
+import { TIERS, TIER_ICONS, getTierInfo } from '../types'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function formatMXN(amount: number) {
@@ -354,7 +354,12 @@ export default function ProfilePage() {
                   className="w-full flex items-center gap-3 px-5 py-4 tap-target"
                 >
                   {/* Mini avatar con marco actual */}
-                  <TierFrame tierId={tierId} size={44} initial={initial} />
+                  <TierFrame
+                    tierId={tierId}
+                    size={44}
+                    initial={initial}
+                    iconUrl={TIER_ICONS[tierId] ?? undefined}
+                  />
 
                   <div className="flex-1 text-left">
                     <div className="flex items-center gap-2">
@@ -420,6 +425,7 @@ export default function ProfilePage() {
                                 tierId={t.id}
                                 size={48}
                                 initial={initial}
+                                iconUrl={TIER_ICONS[t.id] ?? undefined}
                               />
                             </div>
 
