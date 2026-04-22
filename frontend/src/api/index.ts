@@ -39,9 +39,11 @@ api.interceptors.response.use(
     const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean }
 
     const isUnauthorized = error.response?.status === 401
-    const isRefreshRoute = originalRequest?.url?.includes('/auth/refresh')
+    const isAuthRoute = originalRequest?.url?.includes('/auth/login')
+      || originalRequest?.url?.includes('/auth/register')
+      || originalRequest?.url?.includes('/auth/refresh')
 
-    if (!isUnauthorized || isRefreshRoute || originalRequest._retry) {
+    if (!isUnauthorized || isAuthRoute || originalRequest._retry) {
       return Promise.reject(error)
     }
 
