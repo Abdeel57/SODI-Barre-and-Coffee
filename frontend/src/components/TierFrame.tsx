@@ -42,11 +42,31 @@ export function TierFrame({ tierId, size = 72, initial, className = '' }: TierFr
 
   return (
     <div className={`relative ${className}`} style={{ width: size, height: size }}>
+      {/* Avatar circle — rendered first so the SVG ring appears on top */}
+      <div
+        className="absolute rounded-full flex items-center justify-center"
+        style={{
+          inset: pad,
+          background: tierId === 'prima' ? '#0D0D0D' : '#F2EBE1',
+        }}
+      >
+        <span
+          className="font-display"
+          style={{
+            fontSize: (size - pad * 2) * 0.38,
+            color: tier.textColor,
+          }}
+        >
+          {initial}
+        </span>
+      </div>
+
+      {/* SVG ring — rendered last so it sits on top of the avatar */}
       <svg
         width={size}
         height={size}
         viewBox={`0 0 ${size} ${size}`}
-        style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}
+        style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 1 }}
       >
         {/* Glow for Attitude and Prima */}
         {(tierId === 'attitude' || tierId === 'prima') && (
@@ -68,7 +88,7 @@ export function TierFrame({ tierId, size = 72, initial, className = '' }: TierFr
           strokeDasharray={tierId === 'plie' ? '5 3' : 'none'}
         />
 
-        {/* Arabesque decorative dots — placed on the ring itself */}
+        {/* Arabesque decorative dots */}
         {tierId === 'arabesque' && (
           <ArabesqueDots cx={center} cy={center} r={radius} />
         )}
@@ -78,32 +98,13 @@ export function TierFrame({ tierId, size = 72, initial, className = '' }: TierFr
           <>
             {[0, 90, 180, 270].map((deg) => {
               const angle = (deg - 90) * (Math.PI / 180)
-              const x = center + (radius) * Math.cos(angle)
-              const y = center + (radius) * Math.sin(angle)
+              const x = center + radius * Math.cos(angle)
+              const y = center + radius * Math.sin(angle)
               return <circle key={deg} cx={x} cy={y} r={2.5} fill="#D4AF37" />
             })}
           </>
         )}
       </svg>
-
-      {/* Avatar circle inside */}
-      <div
-        className="absolute rounded-full flex items-center justify-center"
-        style={{
-          inset: pad,
-          background: tierId === 'prima' ? '#0D0D0D' : '#F2EBE1',
-        }}
-      >
-        <span
-          className="font-display"
-          style={{
-            fontSize: (size - pad * 2) * 0.38,
-            color: tier.textColor,
-          }}
-        >
-          {initial}
-        </span>
-      </div>
     </div>
   )
 }
