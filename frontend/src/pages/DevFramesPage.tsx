@@ -229,7 +229,8 @@ function FrameEditor({ tierId, label, avatar, cfg, onChange }: FrameEditorProps)
 export default function DevFramesPage() {
   const [avatar, setAvatar] = useState(DEFAULT_AVATAR)
   const [cfgs, setCfgs] = useState<AllCfgs>({ ...DEFAULT_CFGS })
-  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'ok' | 'error'>('idle')
+  const [saveState,    setSaveState]    = useState<'idle' | 'saving' | 'ok' | 'error'>('idle')
+  const [publishState, setPublishState] = useState<'idle' | 'saving' | 'ok' | 'error'>('idle')
   const fileRef = useRef<HTMLInputElement>(null)
 
   function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -271,34 +272,71 @@ export default function DevFramesPage() {
     }
   }
 
-  const saveLabel = saveState === 'saving' ? 'Guardando…'
-    : saveState === 'ok'    ? '✓ ¡Guardado! Visible al público'
-    : saveState === 'error' ? '✗ Error al guardar'
-    : '💾 Guardar configuración'
+  async function handlePublish() {
+    // Primero guardar, luego publicar
+    setPublishState('saving')
+    try {
+      const saveRes = await fetch('/dev-frames/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(cfgs),
+      })
+      if (!saveRes.ok) throw new Error('Error al guardar')
 
-  const saveBg = saveState === 'ok' ? '#16a34a'
-    : saveState === 'error' ? '#dc2626'
-    : '#1a1a1a'
+      const pubRes = await fetch('/dev-frames/publish', { method: 'POST' })
+      if (!pubRes.ok) throw new Error('Error al publicar')
+
+      setPublishState('ok')
+      setTimeout(() => setPublishState('idle'), 5000)
+    } catch {
+      setPublishState('error')
+      setTimeout(() => setPublishState('idle'), 4000)
+    }
+  }
+
+  const saveLabel = saveState === 'saving' ? 'Guardando…'
+    : saveState === 'ok'    ? '✓ Guardado en local'
+    : saveState === 'error' ? '✗ Error'
+    : '💾 Guardar'
+
+  const publishLabel = publishState === 'saving' ? 'Publicando… (puede tardar 1 min)'
+    : publishState === 'ok'    ? '✓ ¡Publicado! Railway está desplegando'
+    : publishState === 'error' ? '✗ Error al publicar'
+    : '🚀 Publicar en producción'
+
+  const saveBg = saveState === 'ok' ? '#16a34a' : saveState === 'error' ? '#dc2626' : '#555'
+  const publishBg = publishState === 'ok' ? '#16a34a' : publishState === 'error' ? '#dc2626' : '#1a1a1a'
 
   return (
     <div style={{ minHeight: '100vh', background: '#F5F3F0', padding: '32px 20px', fontFamily: 'sans-serif' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap', marginBottom: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 8 }}>
         <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>🎨 Editor de marcos</h1>
         <button
           onClick={handleSave}
-          disabled={saveState === 'saving'}
+          disabled={saveState === 'saving' || publishState === 'saving'}
           style={{
-            padding: '10px 24px', background: saveBg, color: '#fff',
-            border: 'none', borderRadius: 8, cursor: saveState === 'saving' ? 'default' : 'pointer',
-            fontSize: 14, fontWeight: 700, transition: 'background 0.2s',
+            padding: '10px 20px', background: saveBg, color: '#fff',
+            border: 'none', borderRadius: 8, cursor: 'pointer',
+            fontSize: 13, fontWeight: 600, transition: 'background 0.2s',
           }}
         >
           {saveLabel}
         </button>
+        <button
+          onClick={handlePublish}
+          disabled={publishState === 'saving'}
+          style={{
+            padding: '10px 24px', background: publishBg, color: '#fff',
+            border: 'none', borderRadius: 8, cursor: publishState === 'saving' ? 'default' : 'pointer',
+            fontSize: 14, fontWeight: 700, transition: 'background 0.2s',
+          }}
+        >
+          {publishLabel}
+        </button>
       </div>
 
       <p style={{ fontSize: 13, color: '#888', margin: '0 0 20px' }}>
-        Ajusta cada marco · Pulsa Guardar para aplicar los cambios en producción
+        Ajusta los marcos → <strong>Guardar</strong> para ver cambios en local → <strong>Publicar</strong> para subirlos a la web
       </p>
 
       <button
