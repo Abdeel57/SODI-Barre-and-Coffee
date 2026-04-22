@@ -539,12 +539,13 @@ export default function ProfilePage() {
                               background:  isCurrent ? `${t.color}12` : '#FAFAF9',
                             }}
                           >
-                            {/* Frame preview — always show the ring, dimmed if locked */}
+                            {/* Frame preview with user's photo inside */}
                             <div style={{ opacity: isUnlocked ? 1 : 0.35 }}>
                               <TierFrame
                                 tierId={t.id}
                                 size={48}
                                 initial={initial}
+                                avatarUrl={avatarData}
                                 iconUrl={TIER_ICONS[t.id] ?? undefined}
                               />
                             </div>
