@@ -136,10 +136,20 @@ export default function CoachAttendancePage() {
                       : 'bg-white border-nude-border text-noir'
                   }`}
                 >
-                  <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 border transition-colors ${
-                    isPresent ? 'bg-white border-white' : 'border-nude-border'
-                  }`}>
-                    {isPresent && <Check size={14} className="text-noir" strokeWidth={2.5} />}
+                  <div className="relative w-8 h-8 shrink-0">
+                    <div className={`w-8 h-8 rounded-full overflow-hidden flex items-center justify-center border transition-colors ${
+                      isPresent ? 'border-white' : 'border-nude-border bg-nude-light'
+                    }`}>
+                      {b.student.avatar
+                        ? <img src={b.student.avatar} alt={b.student.name} className="w-full h-full object-cover" />
+                        : <span className="font-display text-[13px] text-nude-dark">{b.student.name.charAt(0).toUpperCase()}</span>
+                      }
+                    </div>
+                    {isPresent && (
+                      <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-white flex items-center justify-center shadow">
+                        <Check size={9} className="text-noir" strokeWidth={3} />
+                      </div>
+                    )}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-label font-medium truncate">{b.student.name}</p>

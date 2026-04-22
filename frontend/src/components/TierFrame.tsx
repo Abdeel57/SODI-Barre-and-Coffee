@@ -3,13 +3,14 @@ import { getTierInfo } from '../types'
 
 interface TierFrameProps {
   tierId: TierId
-  size?: number       // diameter in px, default 72
-  initial: string     // letter shown in center when no iconUrl
-  iconUrl?: string    // PNG frame image — fills the full circle as the decorative ring
+  size?: number          // diameter in px, default 72
+  initial: string        // letter shown when no avatarUrl
+  avatarUrl?: string | null   // user's real photo (Base64 or URL)
+  iconUrl?: string       // PNG tier frame — used as the outer decorative ring
   className?: string
 }
 
-// ─── Decorative dots for Arabesque ring (SVG fallback only) ──────────────────
+// ─── SVG decorative dots for Arabesque fallback ───────────────────────────────
 function ArabesqueDots({ cx, cy, r }: { cx: number; cy: number; r: number }) {
   const dots = 12
   return (
@@ -24,71 +25,74 @@ function ArabesqueDots({ cx, cy, r }: { cx: number; cy: number; r: number }) {
   )
 }
 
-export function TierFrame({ tierId, size = 72, initial, iconUrl, className = '' }: TierFrameProps) {
+export function TierFrame({ tierId, size = 72, initial, avatarUrl, iconUrl, className = '' }: TierFrameProps) {
   const tier   = getTierInfo(tierId)
+  const pad    = Math.round(size * 0.1)   // ~10% padding so photo sits inside the frame ring
   const center = size / 2
-  const pad    = 4
-  const radius = center - pad
+  const radius = center - 3
 
-  // ── No tier: plain circle with initial ───────────────────────────────────────
+  // ── No tier: plain circle (photo or initial) ──────────────────────────────────
   if (tierId === 'none') {
     return (
       <div
-        className={`rounded-full bg-nude-light border-2 border-nude flex items-center justify-center ${className}`}
+        className={`rounded-full overflow-hidden flex items-center justify-center bg-nude-light border-2 border-nude ${className}`}
         style={{ width: size, height: size }}
       >
-        <span className="font-display text-nude-dark" style={{ fontSize: size * 0.38 }}>
-          {initial}
-        </span>
+        {avatarUrl
+          ? <img src={avatarUrl} alt="avatar" className="w-full h-full object-cover" />
+          : <span className="font-display text-nude-dark" style={{ fontSize: size * 0.38 }}>{initial}</span>
+        }
       </div>
     )
   }
 
-  // ── PNG frame: image fills the full component, initial centered on top ───────
+  // ── Tier with PNG frame ────────────────────────────────────────────────────────
   if (iconUrl) {
     return (
-      <div className={`relative flex items-center justify-center ${className}`} style={{ width: size, height: size }}>
-        {/* Frame PNG occupies the full space — must have transparent center */}
+      <div className={`relative ${className}`} style={{ width: size, height: size }}>
+        {/* PNG frame fills entire space — transparent center lets the avatar show */}
         <img
           src={iconUrl}
           alt=""
-          style={{ position: 'absolute', inset: 0, width: size, height: size, objectFit: 'contain' }}
+          style={{ position: 'absolute', inset: 0, width: size, height: size, objectFit: 'contain', zIndex: 1, pointerEvents: 'none' }}
         />
-        {/* Initial sits in the center, on top of the transparent hole */}
-        <span
-          className="relative font-display z-10"
-          style={{ fontSize: size * 0.32, color: tier.textColor }}
+        {/* Avatar/initial in the center, inside the frame hole */}
+        <div
+          className="absolute rounded-full overflow-hidden flex items-center justify-center"
+          style={{
+            inset: pad,
+            background: avatarUrl ? 'transparent' : (tierId === 'prima' ? '#0D0D0D' : '#F2EBE1'),
+          }}
         >
-          {initial}
-        </span>
+          {avatarUrl
+            ? <img src={avatarUrl} alt="avatar" className="w-full h-full object-cover" />
+            : <span className="font-display" style={{ fontSize: (size - pad * 2) * 0.38, color: tier.textColor }}>{initial}</span>
+          }
+        </div>
       </div>
     )
   }
 
-  // ── SVG fallback ring (when no PNG icon provided) ─────────────────────────────
+  // ── SVG ring fallback (no PNG icon) ───────────────────────────────────────────
   return (
     <div className={`relative ${className}`} style={{ width: size, height: size }}>
-      {/* Avatar circle — rendered first */}
+      {/* Avatar/initial — rendered first, SVG ring goes on top */}
       <div
-        className="absolute rounded-full flex items-center justify-center"
+        className="absolute rounded-full overflow-hidden flex items-center justify-center"
         style={{
           inset: pad,
-          background: tierId === 'prima' ? '#0D0D0D' : '#F2EBE1',
+          background: avatarUrl ? 'transparent' : (tierId === 'prima' ? '#0D0D0D' : '#F2EBE1'),
         }}
       >
-        <span
-          className="font-display"
-          style={{ fontSize: (size - pad * 2) * 0.38, color: tier.textColor }}
-        >
-          {initial}
-        </span>
+        {avatarUrl
+          ? <img src={avatarUrl} alt="avatar" className="w-full h-full object-cover" />
+          : <span className="font-display" style={{ fontSize: (size - pad * 2) * 0.38, color: tier.textColor }}>{initial}</span>
+        }
       </div>
 
       {/* SVG ring on top */}
       <svg
-        width={size}
-        height={size}
-        viewBox={`0 0 ${size} ${size}`}
+        width={size} height={size} viewBox={`0 0 ${size} ${size}`}
         style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 1 }}
       >
         {(tierId === 'attitude' || tierId === 'prima') && (
@@ -96,25 +100,16 @@ export function TierFrame({ tierId, size = 72, initial, iconUrl, className = '' 
             stroke={tier.color} strokeWidth={6} opacity={0.18} />
         )}
         <circle
-          cx={center} cy={center} r={radius}
-          fill="none"
+          cx={center} cy={center} r={radius} fill="none"
           stroke={tier.color}
           strokeWidth={tierId === 'prima' ? 3 : 2.5}
           strokeDasharray={tierId === 'plie' ? '5 3' : 'none'}
         />
-        {tierId === 'arabesque' && (
-          <ArabesqueDots cx={center} cy={center} r={radius} />
-        )}
-        {tierId === 'prima' && (
-          <>
-            {[0, 90, 180, 270].map((deg) => {
-              const angle = (deg - 90) * (Math.PI / 180)
-              const x = center + radius * Math.cos(angle)
-              const y = center + radius * Math.sin(angle)
-              return <circle key={deg} cx={x} cy={y} r={2.5} fill="#D4AF37" />
-            })}
-          </>
-        )}
+        {tierId === 'arabesque' && <ArabesqueDots cx={center} cy={center} r={radius} />}
+        {tierId === 'prima' && [0, 90, 180, 270].map((deg) => {
+          const angle = (deg - 90) * (Math.PI / 180)
+          return <circle key={deg} cx={center + radius * Math.cos(angle)} cy={center + radius * Math.sin(angle)} r={2.5} fill="#D4AF37" />
+        })}
       </svg>
     </div>
   )

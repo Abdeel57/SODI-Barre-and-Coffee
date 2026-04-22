@@ -50,6 +50,7 @@ export interface AdminStudent {
   email: string
   phone: string | null
   role: 'STUDENT' | 'COACH' | 'ADMIN'
+  avatar: string | null
   createdAt: string
   totalBookings: number
   totalClassesTaken: number

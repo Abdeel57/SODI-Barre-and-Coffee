@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Bell, LogOut, Package, Calendar, Heart, KeyRound, ChevronRight, ChevronDown, Smartphone, Coffee } from 'lucide-react'
+import { Bell, LogOut, Package, Calendar, Heart, KeyRound, ChevronRight, ChevronDown, Smartphone, Coffee, Camera, Trash2 } from 'lucide-react'
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { clsx } from 'clsx'
@@ -94,6 +94,12 @@ export default function ProfilePage() {
   const [pushLoading,  setPushLoading]  = useState(false)
   const [rewardOpen,   setRewardOpen]   = useState(false)
   const [logrosOpen,   setLogrosOpen]   = useState(false)
+
+  // ── Avatar ────────────────────────────────────────────────────────────────
+  const [avatarData,      setAvatarData]      = useState<string | null>(user?.avatar ?? null)
+  const [avatarUploading, setAvatarUploading] = useState(false)
+  const [avatarMenuOpen,  setAvatarMenuOpen]  = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   // ── Sheets ────────────────────────────────────────────────────────────────
   const [healthOpen,   setHealthOpen]   = useState(false)
@@ -223,6 +229,59 @@ export default function ProfilePage() {
     navigate('/login', { replace: true })
   }
 
+  // ── Avatar helpers ────────────────────────────────────────────────────────
+  function compressImage(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const img = new Image()
+      const url = URL.createObjectURL(file)
+      img.onload = () => {
+        URL.revokeObjectURL(url)
+        const SIZE = 300
+        const canvas = document.createElement('canvas')
+        canvas.width  = SIZE
+        canvas.height = SIZE
+        const ctx = canvas.getContext('2d')!
+        // crop to square from center
+        const side = Math.min(img.width, img.height)
+        const sx   = (img.width  - side) / 2
+        const sy   = (img.height - side) / 2
+        ctx.drawImage(img, sx, sy, side, side, 0, 0, SIZE, SIZE)
+        resolve(canvas.toDataURL('image/jpeg', 0.75))
+      }
+      img.onerror = reject
+      img.src = url
+    })
+  }
+
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    e.target.value = ''
+    setAvatarUploading(true)
+    setAvatarMenuOpen(false)
+    try {
+      const compressed = await compressImage(file)
+      await profileApi.updateAvatar(compressed)
+      setAvatarData(compressed)
+      showToast('Foto actualizada', 'success')
+    } catch {
+      showToast('Error al subir la foto', 'error')
+    } finally {
+      setAvatarUploading(false)
+    }
+  }
+
+  async function handleDeleteAvatar() {
+    setAvatarMenuOpen(false)
+    try {
+      await profileApi.deleteAvatar()
+      setAvatarData(null)
+      showToast('Foto eliminada', 'info')
+    } catch {
+      showToast('Error al eliminar la foto', 'error')
+    }
+  }
+
   const initial  = user?.name?.charAt(0).toUpperCase() ?? '?'
   const tierId   = (rewards?.tier ?? 'none') as TierId
   const tierInfo = getTierInfo(tierId)
@@ -264,10 +323,66 @@ export default function ProfilePage() {
           </div>
         ) : (
           <>
+            {/* Avatar con botón de edición */}
             <div className="flex items-end gap-3">
-              <TierFrame tierId={tierId} size={72} initial={initial} />
+              <div className="relative">
+                <button
+                  onClick={() => setAvatarMenuOpen((v) => !v)}
+                  className="relative tap-target"
+                  disabled={avatarUploading}
+                  aria-label="Cambiar foto de perfil"
+                >
+                  <TierFrame
+                    tierId={tierId}
+                    size={80}
+                    initial={initial}
+                    avatarUrl={avatarData}
+                    iconUrl={TIER_ICONS[tierId] ?? undefined}
+                  />
+                  {/* Camera badge */}
+                  <span className="absolute bottom-0 right-0 w-6 h-6 bg-noir rounded-full flex items-center justify-center shadow-md border-2 border-white">
+                    {avatarUploading
+                      ? <span className="w-3 h-3 border-2 border-white/50 border-t-white rounded-full animate-spin" />
+                      : <Camera size={11} className="text-white" />
+                    }
+                  </span>
+                </button>
+
+                {/* Menú contextual */}
+                {avatarMenuOpen && (
+                  <div className="absolute top-full left-0 mt-2 bg-white border border-nude-border rounded-lg shadow-lg z-20 w-44 overflow-hidden">
+                    <button
+                      onClick={() => { setAvatarMenuOpen(false); fileInputRef.current?.click() }}
+                      className="flex items-center gap-2 w-full px-4 py-3 text-[13px] font-body text-noir hover:bg-off-white tap-target"
+                    >
+                      <Camera size={14} strokeWidth={1.5} />
+                      {avatarData ? 'Cambiar foto' : 'Subir foto'}
+                    </button>
+                    {avatarData && (
+                      <button
+                        onClick={handleDeleteAvatar}
+                        className="flex items-center gap-2 w-full px-4 py-3 text-[13px] font-body text-red-500 hover:bg-red-50 tap-target border-t border-nude-border"
+                      >
+                        <Trash2 size={14} strokeWidth={1.5} />
+                        Eliminar foto
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+
               {tierId !== 'none' && <TierBadge tierId={tierId} size="md" />}
             </div>
+
+            {/* Input file oculto */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleFileChange}
+            />
+
             <h1 className="text-hero text-[28px] text-noir mt-4 leading-tight">{user?.name}</h1>
             <p className="text-label text-stone mt-1">{user?.email}</p>
           </>
@@ -358,6 +473,7 @@ export default function ProfilePage() {
                     tierId={tierId}
                     size={44}
                     initial={initial}
+                    avatarUrl={avatarData}
                     iconUrl={TIER_ICONS[tierId] ?? undefined}
                   />
 

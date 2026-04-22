@@ -135,6 +135,7 @@ router.get('/students', async (req: Request, res: Response, next: NextFunction) 
           email: true,
           phone: true,
           role: true,
+          avatar: true,
           createdAt: true,
           totalClassesTaken: true,
           subscription: {
@@ -162,6 +163,7 @@ router.get('/students', async (req: Request, res: Response, next: NextFunction) 
         email: s.email,
         phone: s.phone,
         role: s.role,
+        avatar: s.avatar,
         createdAt: s.createdAt,
         totalBookings: s._count.bookings,
         totalClassesTaken: s.totalClassesTaken,

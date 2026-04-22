@@ -80,7 +80,7 @@ router.get('/classes/:classId/attendance', async (req: Request, res: Response, n
         status: { in: ['CONFIRMED', 'ATTENDED'] },
       },
       include: {
-        user: { select: { id: true, name: true, email: true } },
+        user: { select: { id: true, name: true, email: true, avatar: true } },
       },
       orderBy: { user: { name: 'asc' } },
     })

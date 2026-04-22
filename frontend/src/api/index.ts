@@ -159,4 +159,6 @@ export const profileApi = {
   updatePassword:     (data: { currentPassword: string; newPassword: string }) =>
     api.put('/api/profile/password', data),
   completeOnboarding: ()                        => api.patch('/api/profile/onboarding'),
+  updateAvatar:       (avatar: string)          => api.patch('/api/profile/avatar', { avatar }),
+  deleteAvatar:       ()                        => api.delete('/api/profile/avatar'),
 }

@@ -80,6 +80,33 @@ router.put('/password', auth, async (req: Request, res: Response, next: NextFunc
   }
 })
 
+// ─── PATCH /api/profile/avatar ───────────────────────────────────────────────
+const avatarSchema = z.object({
+  avatar: z.string()
+    .max(200_000, 'La imagen es demasiado grande (máx ~150 KB)')
+    .refine((v) => v.startsWith('data:image/'), 'Formato de imagen inválido'),
+})
+
+router.patch('/avatar', auth, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { avatar } = avatarSchema.parse(req.body)
+    await prisma.user.update({ where: { id: req.user!.id }, data: { avatar } })
+    return res.json({ ok: true, avatar })
+  } catch (err) {
+    return next(err)
+  }
+})
+
+// ─── DELETE /api/profile/avatar ──────────────────────────────────────────────
+router.delete('/avatar', auth, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    await prisma.user.update({ where: { id: req.user!.id }, data: { avatar: null } })
+    return res.json({ ok: true })
+  } catch (err) {
+    return next(err)
+  }
+})
+
 // ─── PATCH /api/profile/onboarding ───────────────────────────────────────────
 // Marks the tutorial as completed for this user (server-side, device-independent)
 router.patch('/onboarding', auth, async (req: Request, res: Response, next: NextFunction) => {

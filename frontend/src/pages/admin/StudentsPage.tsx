@@ -413,10 +413,11 @@ function StudentCard({
         className="flex items-center gap-3 p-4 w-full tap-target text-left"
         onClick={() => setExpanded((v) => !v)}
       >
-        <div className="w-10 h-10 rounded-full bg-nude-light flex items-center justify-center shrink-0">
-          <span className="text-title text-[18px] text-nude-dark font-display">
-            {student.name.charAt(0).toUpperCase()}
-          </span>
+        <div className="w-10 h-10 rounded-full bg-nude-light flex items-center justify-center shrink-0 overflow-hidden">
+          {student.avatar
+            ? <img src={student.avatar} alt={student.name} className="w-full h-full object-cover" />
+            : <span className="text-title text-[18px] text-nude-dark font-display">{student.name.charAt(0).toUpperCase()}</span>
+          }
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">

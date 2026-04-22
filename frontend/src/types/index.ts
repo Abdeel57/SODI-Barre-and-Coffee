@@ -60,7 +60,7 @@ export interface CoachClass {
 export interface AttendanceBooking {
   bookingId: string
   status: 'CONFIRMED' | 'ATTENDED'
-  student: { id: string; name: string; email: string }
+  student: { id: string; name: string; email: string; avatar?: string | null }
 }
 
 export interface AttendanceData {
@@ -81,6 +81,7 @@ export interface User {
   email:                string
   role:                 UserRole
   onboardingCompleted:  boolean
+  avatar?:              string | null
   gender?:              Gender | null
   birthDate?:           string | null
 }

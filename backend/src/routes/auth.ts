@@ -181,6 +181,7 @@ router.get('/me', auth, async (req: Request, res: Response, next: NextFunction) 
         phone: true,
         role: true,
         onboardingCompleted: true,
+        avatar: true,
         createdAt: true,
         subscription: {
           select: {
