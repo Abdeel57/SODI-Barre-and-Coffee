@@ -49,8 +49,8 @@ export function TierFrame({ tierId, size = 72, initial, avatarUrl, iconUrl, clas
 
   // ── PNG frame mode ────────────────────────────────────────────────────────────
   if (iconUrl) {
-    const cfg       = TIER_FRAME_CONFIG[tierId] ?? { overhang: 4, opacity: 1, scale: 1.0 }
-    const frameSize = (size + cfg.overhang * 2) * cfg.scale
+    const cfg       = TIER_FRAME_CONFIG[tierId] ?? { scale: 1.1, offsetX: 0, offsetY: 0 }
+    const frameSize = size * cfg.scale
 
     return (
       <div className={`relative ${className}`} style={{ width: size, height: size }}>
@@ -65,7 +65,7 @@ export function TierFrame({ tierId, size = 72, initial, avatarUrl, iconUrl, clas
           }
         </div>
 
-        {/* PNG frame — position and size controlled by tierFrameConfig.ts */}
+        {/* PNG frame — centered via transform so scale always grows outward */}
         <img
           src={iconUrl}
           alt=""
@@ -73,10 +73,10 @@ export function TierFrame({ tierId, size = 72, initial, avatarUrl, iconUrl, clas
             position:      'absolute',
             width:         frameSize,
             height:        frameSize,
-            top:           -(frameSize - size) / 2,
-            left:          -(frameSize - size) / 2,
+            top:           '50%',
+            left:          '50%',
+            transform:     `translate(calc(-50% + ${cfg.offsetX}px), calc(-50% + ${cfg.offsetY}px))`,
             objectFit:     'contain',
-            opacity:       cfg.opacity,
             zIndex:        1,
             pointerEvents: 'none',
           }}

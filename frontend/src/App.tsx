@@ -27,6 +27,7 @@ const AdminRedeemPage     = lazy(() => import('./pages/admin/RedeemPage'))
 const CoachDashboardPage  = lazy(() => import('./pages/coach/DashboardPage'))
 const CoachAttendancePage = lazy(() => import('./pages/coach/AttendancePage'))
 const OnboardingOverlay   = lazy(() => import('./components/OnboardingOverlay'))
+const DevFramesPage       = import.meta.env.DEV ? lazy(() => import('./pages/DevFramesPage')) : null
 
 // ── Loading screen ─────────────────────────────────────────────────────────────
 function LoadingScreen() {
@@ -86,6 +87,9 @@ export default function App() {
     <>
       <Suspense fallback={<LoadingScreen />}>
         <Routes>
+          {/* Dev only */}
+          {DevFramesPage && <Route path="/dev-frames" element={<DevFramesPage />} />}
+
           {/* Public */}
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
