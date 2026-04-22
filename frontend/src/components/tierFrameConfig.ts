@@ -20,7 +20,7 @@ export const TIER_FRAME_CONFIG: Record<string, TierFrameConfig> = {
     offsetY: 9,
   },
   arabesque: {
-    scale:   1.37,
+    scale:   1.36,
     offsetX: -3,
     offsetY: 5,
   },
