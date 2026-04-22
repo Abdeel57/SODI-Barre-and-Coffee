@@ -1,5 +1,6 @@
 import type { TierId } from '../types'
 import { getTierInfo } from '../types'
+import { TIER_FRAME_CONFIG } from './tierFrameConfig'
 
 interface TierFrameProps {
   tierId: TierId
@@ -10,15 +11,6 @@ interface TierFrameProps {
   className?: string
 }
 
-// ─── Extra size (px) the PNG frame extends beyond the photo on each side ──────
-// These values match each PNG's decorative ring/wreath position so it sits
-// visibly at the photo edge without covering too much of the face area.
-const FRAME_OVERHANG: Record<string, number> = {
-  plie:      6,   // thin ring + single flower: just peek outside
-  arabesque: 6,   // thin ring + scattered buds: same
-  attitude:  4,   // blue flower wreath: moderate overhang
-  prima:     2,   // thick rose wreath: almost no overhang needed
-}
 
 // ─── SVG dots for Arabesque (fallback without PNG) ───────────────────────────
 function ArabesqueDots({ cx, cy, r }: { cx: number; cy: number; r: number }) {
@@ -57,8 +49,8 @@ export function TierFrame({ tierId, size = 72, initial, avatarUrl, iconUrl, clas
 
   // ── PNG frame mode ────────────────────────────────────────────────────────────
   if (iconUrl) {
-    const overhang   = FRAME_OVERHANG[tierId] ?? 4
-    const frameSize  = size + overhang * 2   // frame is slightly larger than photo
+    const cfg       = TIER_FRAME_CONFIG[tierId] ?? { overhang: 4, opacity: 1, scale: 1.0 }
+    const frameSize = (size + cfg.overhang * 2) * cfg.scale
 
     return (
       <div className={`relative ${className}`} style={{ width: size, height: size }}>
@@ -73,7 +65,7 @@ export function TierFrame({ tierId, size = 72, initial, avatarUrl, iconUrl, clas
           }
         </div>
 
-        {/* PNG frame: centered over the photo, extends `overhang`px beyond edge */}
+        {/* PNG frame — position and size controlled by tierFrameConfig.ts */}
         <img
           src={iconUrl}
           alt=""
@@ -81,9 +73,10 @@ export function TierFrame({ tierId, size = 72, initial, avatarUrl, iconUrl, clas
             position:      'absolute',
             width:         frameSize,
             height:        frameSize,
-            top:           -overhang,
-            left:          -overhang,
+            top:           -(frameSize - size) / 2,
+            left:          -(frameSize - size) / 2,
             objectFit:     'contain',
+            opacity:       cfg.opacity,
             zIndex:        1,
             pointerEvents: 'none',
           }}
