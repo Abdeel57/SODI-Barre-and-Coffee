@@ -170,36 +170,36 @@ function FrameEditor({ tierId, label, avatar, cfg, onChange }: FrameEditorProps)
         <p style={{ margin: '0 0 10px', fontSize: 11, color: '#888', fontWeight: 600 }}>
           Vista previa en tamaños reales de la app:
         </p>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 20, flexWrap: 'wrap' }}>
           {[
             { size: 68,  label: 'Lista logros' },
             { size: 80,  label: 'Perfil foto' },
             { size: 96,  label: 'Perfil grande' },
           ].map(({ size: s, label: lbl }) => {
             const EDITOR_REF = 160
-            const ratio     = s / EDITOR_REF
-            const frameSize = s * cfg.scale
-            const ox        = cfg.offsetX * ratio
-            const oy        = cfg.offsetY * ratio
-            const iconUrl   = TIER_ICONS[tierId]
+            const ratio      = s / EDITOR_REF
+            const frameSize  = Math.round(s * cfg.scale)
+            const ox         = Math.round(cfg.offsetX * ratio)
+            const oy         = Math.round(cfg.offsetY * ratio)
+            const photoLeft  = Math.round((frameSize - s) / 2) - ox
+            const photoTop   = Math.round((frameSize - s) / 2) - oy
+            const iconUrl    = TIER_ICONS[tierId]
             return (
               <div key={s} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-                <div style={{ position: 'relative', width: s, height: s, overflow: 'visible' }}>
+                {/* Same logic as TierFrame: container = frameSize, no overflow */}
+                <div style={{ position: 'relative', width: frameSize, height: frameSize }}>
                   <div style={{
-                    position: 'absolute', inset: 0,
+                    position: 'absolute', left: photoLeft, top: photoTop,
+                    width: s, height: s,
                     borderRadius: '50%', overflow: 'hidden', background: '#F2EBE1',
                   }}>
                     <img src={avatar} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
                   </div>
                   {iconUrl && (
                     <img src={iconUrl} alt="" style={{
-                      position:  'absolute',
-                      width:     frameSize, height: frameSize,
-                      top: '50%', left: '50%',
-                      transform: `translate(calc(-50% + ${ox}px), calc(-50% + ${oy}px))`,
-                      objectFit: 'contain',
-                      zIndex:    1,
-                      pointerEvents: 'none',
+                      position: 'absolute', inset: 0,
+                      width: frameSize, height: frameSize,
+                      objectFit: 'contain', zIndex: 1, pointerEvents: 'none',
                     }} />
                   )}
                 </div>
