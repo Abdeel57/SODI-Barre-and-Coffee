@@ -21,7 +21,7 @@ const TIERS: { id: TierId; label: string }[] = [
 ]
 
 interface Cfg { scale: number; offsetX: number; offsetY: number }
-type AllCfgs = Record<TierId, Cfg>
+type AllCfgs = Record<Exclude<TierId, 'none'>, Cfg>
 
 const DEFAULT_CFGS: AllCfgs = {
   plie:      { scale: 1.15, offsetX: 0, offsetY: 0 },
