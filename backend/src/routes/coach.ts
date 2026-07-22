@@ -4,6 +4,7 @@ import { prisma } from '../lib/prisma'
 import { auth } from '../middleware/auth'
 import { isCoach } from '../middleware/isCoach'
 import { onClassAttended, onClassUnattended } from '../services/rewards'
+import { isClassActiveOn, toLocalDateString } from '../lib/classDates'
 
 const router = Router()
 router.use(auth, isCoach)
@@ -40,18 +41,27 @@ router.get('/classes', async (req: Request, res: Response, next: NextFunction) =
     const DAY_LABELS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
     const todayDOW = now.getDay()
 
-    const data = classes.map((c) => ({
-      id:              c.id,
-      name:            c.name,
-      instructor:      c.instructor,
-      dayOfWeek:       c.dayOfWeek,
-      dayLabel:        DAY_LABELS[c.dayOfWeek],
-      startTime:       c.startTime,
-      durationMin:     c.durationMin,
-      maxCapacity:     c.maxCapacity,
-      isToday:         c.dayOfWeek === todayDOW,
-      bookingsThisWeek: c._count.bookings,
-    }))
+    // Fecha en que cae cada clase dentro de esta semana (semana inicia en lunes)
+    const dateOfDayThisWeek = (dow: number) => {
+      const d = new Date(startOfWeek)
+      d.setDate(startOfWeek.getDate() + ((dow + 6) % 7))
+      return toLocalDateString(d)
+    }
+
+    const data = classes
+      .filter((c) => isClassActiveOn(c, dateOfDayThisWeek(c.dayOfWeek)))
+      .map((c) => ({
+        id:               c.id,
+        name:             c.name,
+        instructor:       c.instructor,
+        dayOfWeek:        c.dayOfWeek,
+        dayLabel:         DAY_LABELS[c.dayOfWeek],
+        startTime:        c.startTime,
+        durationMin:      c.durationMin,
+        maxCapacity:      c.maxCapacity,
+        isToday:          c.dayOfWeek === todayDOW,
+        bookingsThisWeek: c._count.bookings,
+      }))
 
     return res.json({ data, today: todayDOW })
   } catch (err) {

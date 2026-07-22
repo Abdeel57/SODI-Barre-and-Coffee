@@ -1,13 +1,16 @@
-import { MapPin, Clock, Users } from 'lucide-react'
+import { MapPin, Clock, Users, Gift } from 'lucide-react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { BottomSheet } from './ui/BottomSheet'
 import { Button } from './ui/Button'
+import { CoachAvatar } from './CoachAvatar'
 import type { ClassSlot, Subscription } from '../types'
 
 interface ClassDetailSheetProps {
   slot: ClassSlot | null
   subscription: Subscription | null
+  /** Clases de cortesía disponibles — permiten reservar sin paquete. */
+  bonusClasses?: number
   bookingLoading: boolean
   cancelLoadingId: string | null
   onBook: (slot: ClassSlot) => void
@@ -22,18 +25,10 @@ function formatTime(time: string): string {
   return `${hour12}:${m.toString().padStart(2, '0')} ${period}`
 }
 
-function getInitials(name: string): string {
-  return name
-    .split(' ')
-    .map((w) => w[0])
-    .slice(0, 2)
-    .join('')
-    .toUpperCase()
-}
-
 export function ClassDetailSheet({
   slot,
   subscription,
+  bonusClasses = 0,
   bookingLoading,
   cancelLoadingId,
   onBook,
@@ -43,6 +38,9 @@ export function ClassDetailSheet({
   if (!slot) return null
 
   const hasSubscription = !!subscription?.isActive
+  // La cortesía se gasta antes que el paquete — igual que en el backend
+  const usesBonus = bonusClasses > 0
+  const canBook = usesBonus || hasSubscription
   const isFull = slot.availableSpots === 0 && !slot.isBooked
   const isCancelLoading = cancelLoadingId === slot.bookingId
 
@@ -75,13 +73,17 @@ export function ClassDetailSheet({
         <h2 className="text-hero text-[28px] text-noir leading-tight">{slot.name}</h2>
 
         {/* Instructor avatar row */}
-        <div className="flex items-center gap-2 mt-3">
-          <div className="w-8 h-8 rounded-full bg-nude flex items-center justify-center shrink-0">
-            <span className="text-label text-[11px] text-noir font-medium">
-              {getInitials(slot.instructor)}
-            </span>
+        <div className="flex items-center gap-2.5 mt-3">
+          <CoachAvatar
+            name={slot.instructor}
+            avatar={slot.coachAvatar}
+            size={40}
+            className="ring-1 ring-nude-border"
+          />
+          <div className="min-w-0">
+            <p className="text-label text-[10px] text-stone uppercase tracking-wide">Tu coach</p>
+            <p className="text-label text-noir truncate">{slot.instructor}</p>
           </div>
-          <span className="text-label text-stone">{slot.instructor}</span>
         </div>
       </div>
 
@@ -126,8 +128,18 @@ export function ClassDetailSheet({
 
       {/* Subscription status */}
       {!slot.isBooked && (
-        <div className="mb-5 rounded-lg border border-nude-border bg-nude-light/40 px-4 py-3">
-          {hasSubscription ? (
+        <div className={`mb-5 rounded-lg px-4 py-3 ${
+          usesBonus ? 'bg-noir' : 'border border-nude-border bg-nude-light/40'
+        }`}>
+          {usesBonus ? (
+            <p className="text-label text-white/85 flex items-center gap-2">
+              <Gift size={15} strokeWidth={1.5} className="text-nude shrink-0" />
+              Usarás una de tus{' '}
+              <span className="text-nude font-medium">
+                {bonusClasses} clase{bonusClasses > 1 ? 's' : ''} de cortesía
+              </span>
+            </p>
+          ) : hasSubscription ? (
             <p className="text-label text-stone">
               <span className="text-noir font-medium">
                 {subscription!.classesLeft !== null
@@ -164,7 +176,7 @@ export function ClassDetailSheet({
           <Button variant="secondary" size="lg" disabled className="w-full">
             Clase llena
           </Button>
-        ) : !hasSubscription ? (
+        ) : !canBook ? (
           <Button variant="secondary" size="lg" disabled className="w-full">
             Necesitas un paquete activo
           </Button>
@@ -176,7 +188,7 @@ export function ClassDetailSheet({
             onClick={() => onBook(slot)}
             className="w-full"
           >
-            Reservar lugar
+            {usesBonus ? 'Reservar gratis' : 'Reservar lugar'}
           </Button>
         )}
       </div>

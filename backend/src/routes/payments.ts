@@ -5,6 +5,7 @@ import { prisma } from '../lib/prisma'
 import { auth } from '../middleware/auth'
 import { createError } from '../middleware/errorHandler'
 import { sendPushToAdmin } from '../services/webpush'
+import { PROMO, promoPrice } from '../lib/promo'
 
 const router = Router()
 
@@ -41,13 +42,19 @@ router.post(
 
       const preference = new Preference(getMPClient())
 
+      // Precio final con la promo de inauguración aplicada (si está vigente)
+      const chargedPrice = promoPrice(pkg.priceMXN)
+      const hasDiscount = chargedPrice < pkg.priceMXN
+
       const result = await preference.create({
         body: {
           items: [
             {
               id: pkg.id,
-              title: pkg.name,
-              unit_price: pkg.priceMXN,
+              title: hasDiscount
+                ? `${pkg.name} · -${PROMO.discountPct}% ${PROMO.label}`
+                : pkg.name,
+              unit_price: chargedPrice,
               quantity: 1,
               currency_id: 'MXN',
             },
@@ -75,7 +82,7 @@ router.post(
         data: {
           userId: req.user!.id,
           packageId: pkg.id,
-          amountMXN: pkg.priceMXN,
+          amountMXN: chargedPrice,
           mpPaymentId: result.id ?? `pref_${Date.now()}`,
           status: 'PENDING',
         },
@@ -96,6 +103,7 @@ router.post(
 interface MPPayment {
   id: number
   status: string
+  status_detail: string
   transaction_amount: number
   metadata: {
     user_id?: string
@@ -131,7 +139,10 @@ router.post('/webhook', async (req: Request, res: Response) => {
     const payment = (await mpRes.json()) as MPPayment
 
     if (payment.status !== 'approved') {
-      console.log(`ℹ️  Webhook: payment ${dataId} con status ${payment.status} — ignorado`)
+      const detail = payment.status_detail ? ` (${payment.status_detail})` : ''
+      console.log(
+        `ℹ️  Webhook: payment ${dataId} con status ${payment.status}${detail} — ignorado`,
+      )
       res.sendStatus(200)
       return
     }
@@ -208,7 +219,7 @@ router.post('/webhook', async (req: Request, res: Response) => {
 
     sendPushToAdmin({
       title: '💳 Nueva compra',
-      body: `${buyer?.name ?? userId} compró ${pkg.name} — $${pkg.priceMXN} MXN`,
+      body: `${buyer?.name ?? userId} compró ${pkg.name} — $${payment.transaction_amount} MXN`,
     }).catch(() => null)
 
     console.log(`✅ Webhook: pago ${payment.id} aprobado para user ${userId}, paquete ${pkg.name}`)

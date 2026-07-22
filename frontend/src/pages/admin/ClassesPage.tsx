@@ -20,6 +20,22 @@ function formatTime(t: string) {
   return `${h % 12 || 12}:${m.toString().padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`
 }
 
+/** "2026-08-01" → "1 ago 2026" (sin pasar por Date, para no arrastrar husos horarios) */
+function formatDate(iso: string) {
+  const MONTHS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']
+  const [y, m, d] = iso.split('-').map(Number)
+  return `${d} ${MONTHS[m - 1]} ${y}`
+}
+
+/** Primera fecha ≥ startDate que cae en el día de la semana elegido */
+function firstOccurrence(startDate: string, dayOfWeek: number): string {
+  const [y, m, d] = startDate.split('-').map(Number)
+  const date = new Date(y, m - 1, d)
+  date.setDate(date.getDate() + ((dayOfWeek - date.getDay() + 7) % 7))
+  const iso = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+  return `${DAY_LABELS[dayOfWeek]} ${formatDate(iso)}`
+}
+
 // ─── Class Form Sheet ─────────────────────────────────────────────────────────
 
 interface FormState {
@@ -27,6 +43,8 @@ interface FormState {
   instructor: string
   dayOfWeek: number
   startTime: string
+  startDate: string // "YYYY-MM-DD" — vacío = disponible siempre
+  endDate: string   // "YYYY-MM-DD" — vacío = sin fecha de fin
   durationMin: number
   maxCapacity: number
 }
@@ -35,11 +53,13 @@ interface FormErrors {
   name?: string
   instructor?: string
   startTime?: string
+  endDate?: string
 }
 
 const DEFAULT_FORM: FormState = {
   name: '', instructor: '', dayOfWeek: 1,
-  startTime: '09:00', durationMin: 55, maxCapacity: 12,
+  startTime: '09:00', startDate: '', endDate: '',
+  durationMin: 55, maxCapacity: 12,
 }
 
 function ClassFormSheet({
@@ -64,6 +84,8 @@ function ClassFormSheet({
         instructor: editClass.instructor,
         dayOfWeek: editClass.dayOfWeek,
         startTime: editClass.startTime,
+        startDate: editClass.startDate ?? '',
+        endDate: editClass.endDate ?? '',
         durationMin: editClass.durationMin,
         maxCapacity: editClass.maxCapacity,
       })
@@ -80,6 +102,9 @@ function ClassFormSheet({
     if (form.name.trim().length < 2) e.name = 'Mínimo 2 caracteres'
     if (form.instructor.trim().length < 2) e.instructor = 'Mínimo 2 caracteres'
     if (!/^\d{2}:\d{2}$/.test(form.startTime)) e.startTime = 'Formato inválido (HH:MM)'
+    if (form.startDate && form.endDate && form.endDate < form.startDate) {
+      e.endDate = 'No puede ser anterior a la fecha de inicio'
+    }
     setErrors(e)
     return Object.keys(e).length === 0
   }
@@ -93,6 +118,8 @@ function ClassFormSheet({
         instructor: form.instructor.trim(),
         dayOfWeek: form.dayOfWeek,
         startTime: form.startTime,
+        startDate: form.startDate || null,
+        endDate: form.endDate || null,
         durationMin: form.durationMin,
         maxCapacity: form.maxCapacity,
         coachId: coachId || null,
@@ -153,6 +180,32 @@ function ClassFormSheet({
           error={errors.startTime}
           maxLength={5}
         />
+
+        {/* Vigencia */}
+        <div className="grid grid-cols-2 gap-3">
+          <Input
+            label="Primera fecha"
+            type="date"
+            value={form.startDate}
+            onChange={(e) => setField('startDate', e.target.value)}
+          />
+          <Input
+            label="Última fecha"
+            type="date"
+            value={form.endDate}
+            min={form.startDate || undefined}
+            onChange={(e) => setField('endDate', e.target.value)}
+            error={errors.endDate}
+          />
+        </div>
+        <p className="text-stone text-[11px] -mt-2">
+          {form.startDate
+            ? `Primera clase: ${firstOccurrence(form.startDate, form.dayOfWeek)}${
+                form.endDate ? ` · termina el ${formatDate(form.endDate)}` : ''
+              }`
+            : 'Sin fecha de inicio la clase aparece todas las semanas, desde siempre.'}
+        </p>
+
         <div className="grid grid-cols-2 gap-3">
           <Input
             label="Duración (min)"
@@ -223,6 +276,13 @@ function AdminClassCard({ cls, onEdit, onToggle }: {
           </p>
           {cls.coachName && (
             <p className="text-stone text-[11px] mt-0.5">Coach: {cls.coachName}</p>
+          )}
+          {(cls.startDate || cls.endDate) && (
+            <p className="text-stone text-[11px] mt-0.5">
+              {cls.startDate && `Desde ${formatDate(cls.startDate)}`}
+              {cls.startDate && cls.endDate && ' · '}
+              {cls.endDate && `Hasta ${formatDate(cls.endDate)}`}
+            </p>
           )}
         </div>
         <div className="text-right shrink-0">

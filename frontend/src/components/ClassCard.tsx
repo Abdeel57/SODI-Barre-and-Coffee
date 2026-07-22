@@ -1,8 +1,8 @@
 import { memo } from 'react'
-import { User } from 'lucide-react'
 import { clsx } from 'clsx'
 import { Button } from './ui/Button'
 import { Badge } from './ui/Badge'
+import { CoachAvatar } from './CoachAvatar'
 import type { ClassSlot } from '../types'
 
 interface ClassCardProps {
@@ -61,8 +61,8 @@ export const ClassCard = memo(function ClassCard({
           <h3 className="text-title text-[20px] text-noir leading-tight truncate">
             {slot.name}
           </h3>
-          <p className="text-label text-stone flex items-center gap-1 mt-0.5">
-            <User size={14} strokeWidth={1.5} />
+          <p className="text-label text-stone flex items-center gap-1.5 mt-1">
+            <CoachAvatar name={slot.instructor} avatar={slot.coachAvatar} size={22} />
             {slot.instructor}
           </p>
         </div>

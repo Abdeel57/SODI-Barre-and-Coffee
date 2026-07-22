@@ -11,8 +11,11 @@ export const adminApi = {
     instructor: string
     dayOfWeek: number
     startTime: string
+    startDate?: string | null
+    endDate?: string | null
     durationMin: number
     maxCapacity: number
+    coachId?: string | null
   }) => api.post('/api/admin/classes', data),
   updateClass: (
     id: string,
@@ -21,6 +24,8 @@ export const adminApi = {
       instructor: string
       dayOfWeek: number
       startTime: string
+      startDate: string | null
+      endDate: string | null
       durationMin: number
       maxCapacity: number
       isActive: boolean
@@ -50,8 +55,10 @@ export const adminApi = {
   getCoaches: () => api.get('/api/admin/coaches'),
   createCoach: (data: { name: string; email: string; phone?: string; password: string }) =>
     api.post('/api/admin/coaches', data),
-  updateCoach: (id: string, data: { name?: string; email?: string; phone?: string | null }) =>
-    api.patch(`/api/admin/coaches/${id}`, data),
+  updateCoach: (
+    id: string,
+    data: { name?: string; email?: string; phone?: string | null; avatar?: string | null },
+  ) => api.patch(`/api/admin/coaches/${id}`, data),
   deleteCoach: (id: string) => api.delete(`/api/admin/coaches/${id}`),
 
   // Pagos
@@ -66,4 +73,9 @@ export const adminApi = {
   // Rewards
   lookupReward: (code: string) => api.get('/api/admin/rewards/lookup', { params: { code } }),
   redeemReward: (code: string) => api.post('/api/admin/rewards/redeem', { code }),
+
+  // Promo de inauguración — clase gratis por QR
+  getFreeClassPromo: () => api.get('/api/admin/promo/free-class'),
+  giftFreeClass: (studentId: string) =>
+    api.post(`/api/admin/students/${studentId}/gift-class`),
 }

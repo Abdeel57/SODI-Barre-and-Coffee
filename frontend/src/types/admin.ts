@@ -29,6 +29,8 @@ export interface AdminClass {
   dayOfWeek: number
   dayLabel: string
   startTime: string
+  startDate: string | null // "YYYY-MM-DD" — 1ª fecha en que se imparte
+  endDate: string | null   // "YYYY-MM-DD" — última fecha inclusive
   durationMin: number
   maxCapacity: number
   isActive: boolean
@@ -54,6 +56,8 @@ export interface AdminStudent {
   createdAt: string
   totalBookings: number
   totalClassesTaken: number
+  /** Clases de cortesía disponibles (promo de inauguración / regalo del staff). */
+  bonusClasses: number
   tier: string
   tierLabel: string
   subscription: {
@@ -77,6 +81,7 @@ export interface AdminCoach {
   email: string
   phone: string | null
   role: 'COACH'
+  avatar: string | null
   createdAt: string
   coachClasses: AdminCoachClass[]
 }

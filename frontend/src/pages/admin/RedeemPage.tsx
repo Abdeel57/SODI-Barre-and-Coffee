@@ -65,7 +65,10 @@ export default function RedeemPage() {
     }
   }
 
-  const rewardLabel = lookup?.type === 'CAFE_FREE' ? '☕ Café gratis' : lookup?.type ?? ''
+  const rewardLabel =
+    lookup?.type === 'CAFE_FREE'  ? '☕ Café gratis' :
+    lookup?.type === 'FREE_CLASS' ? '🎁 Clase de cortesía' :
+    lookup?.type ?? ''
 
   return (
     <div className="min-h-screen bg-off-white">

@@ -1,5 +1,5 @@
 import { useState, FormEvent } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { AxiosError } from 'axios'
 import { authApi, profileApi } from '../api'
 import { useStore } from '../store/useStore'
@@ -88,6 +88,10 @@ function StepIndicator({ current }: { current: number }) {
 // ─── Página principal ─────────────────────────────────────────────────────────
 export default function RegisterPage() {
   const navigate  = useNavigate()
+  const [searchParams] = useSearchParams()
+  // Solo rutas internas — evita redirigir fuera del sitio con ?next=
+  const nextParam = searchParams.get('next')
+  const next = nextParam && nextParam.startsWith('/') && !nextParam.startsWith('//') ? nextParam : null
   const setAuth   = useStore((s) => s.setAuth)
   const showToast = useStore((s) => s.showToast)
 
@@ -178,7 +182,7 @@ export default function RegisterPage() {
     } else {
       showToast('¡Bienvenida!', 'success')
     }
-    navigate('/schedule', { replace: true })
+    navigate(next ?? '/schedule', { replace: true })
   }
 
   // ── Fondo decorativo ──────────────────────────────────────────────────────
@@ -315,7 +319,7 @@ export default function RegisterPage() {
             <p className="text-label text-stone text-center mt-5">
               ¿Ya tienes cuenta?{' '}
               <Link
-                to="/login"
+                to={next ? `/login?next=${encodeURIComponent(next)}` : '/login'}
                 className="text-nude-dark hover:text-noir transition-colors underline underline-offset-2"
               >
                 Iniciar sesión

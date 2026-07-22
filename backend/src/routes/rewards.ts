@@ -13,7 +13,7 @@ router.get('/mine', auth, async (req: Request, res: Response, next: NextFunction
 
     const user = await prisma.user.findUnique({
       where:  { id: userId },
-      select: { totalClassesTaken: true },
+      select: { totalClassesTaken: true, bonusClasses: true },
     })
 
     if (!user) return res.status(404).json({ error: 'Usuario no encontrado' })
@@ -21,13 +21,17 @@ router.get('/mine', auth, async (req: Request, res: Response, next: NextFunction
     const rewards = await prisma.reward.findMany({
       where:   { userId },
       orderBy: { createdAt: 'desc' },
-      select:  { id: true, type: true, code: true, isRedeemed: true, redeemedAt: true, createdAt: true },
+      select:  {
+        id: true, type: true, code: true, isRedeemed: true,
+        redeemedAt: true, createdAt: true, source: true,
+      },
     })
 
     const tier = getTier(user.totalClassesTaken)
 
     return res.json({
       totalClassesTaken: user.totalClassesTaken,
+      bonusClasses: user.bonusClasses,
       tier: tier.id,
       tierLabel: tier.label,
       rewards,

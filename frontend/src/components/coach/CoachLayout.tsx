@@ -1,8 +1,11 @@
+import { useRef, useState } from 'react'
 import { NavLink, useNavigate, Outlet } from 'react-router-dom'
-import { LayoutDashboard, ClipboardList, LogOut } from 'lucide-react'
+import { LayoutDashboard, ClipboardList, LogOut, Camera } from 'lucide-react'
 import { clsx } from 'clsx'
 import { useStore } from '../../store/useStore'
-import { authApi } from '../../api'
+import { authApi, profileApi } from '../../api'
+import { CoachAvatar } from '../CoachAvatar'
+import { compressImage } from '../../lib/image'
 
 const NAV_ITEMS = [
   { to: '/coach/dashboard', icon: LayoutDashboard, label: 'Mis clases' },
@@ -12,8 +15,31 @@ const NAV_ITEMS = [
 export function CoachLayout() {
   const navigate = useNavigate()
   const user = useStore((s) => s.user)
+  const accessToken = useStore((s) => s.accessToken)
+  const setAuth = useStore((s) => s.setAuth)
   const logout = useStore((s) => s.logout)
   const showToast = useStore((s) => s.showToast)
+
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [avatarUploading, setAvatarUploading] = useState(false)
+
+  // La foto se muestra a las alumnas en el horario y al reservar
+  async function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file || !user || !accessToken) return
+    e.target.value = ''
+    setAvatarUploading(true)
+    try {
+      const compressed = await compressImage(file)
+      await profileApi.updateAvatar(compressed)
+      setAuth({ ...user, avatar: compressed }, accessToken)
+      showToast('Foto actualizada', 'success')
+    } catch {
+      showToast('Error al subir la foto', 'error')
+    } finally {
+      setAvatarUploading(false)
+    }
+  }
 
   async function handleLogout() {
     try { await authApi.logout() } catch { /* ignore */ }
@@ -39,6 +65,30 @@ export function CoachLayout() {
           <span className="text-label text-stone hidden sm:block truncate max-w-[140px]">
             {user?.name}
           </span>
+
+          {/* Foto de la coach — la ven las alumnas al reservar */}
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={avatarUploading}
+            className="relative tap-target shrink-0"
+            aria-label="Cambiar mi foto"
+          >
+            <CoachAvatar name={user?.name ?? '?'} avatar={user?.avatar} size={32} />
+            <span className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-noir rounded-full flex items-center justify-center border border-white">
+              {avatarUploading
+                ? <span className="w-2 h-2 border border-white/50 border-t-white rounded-full animate-spin" />
+                : <Camera size={8} className="text-white" />
+              }
+            </span>
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleAvatarChange}
+          />
+
           <button
             onClick={handleLogout}
             className="tap-target p-1.5 rounded-md text-stone hover:text-noir transition-colors"

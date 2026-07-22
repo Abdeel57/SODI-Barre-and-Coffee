@@ -4,6 +4,8 @@ import { prisma } from '../lib/prisma'
 import { auth } from '../middleware/auth'
 import { createError } from '../middleware/errorHandler'
 import { sendPushToAdmin } from '../services/webpush'
+import { isClassActiveOn, toLocalDateString, toRangeDateString } from '../lib/classDates'
+import { getCoachAvatarsByName, resolveCoachAvatar } from '../lib/coachAvatar'
 
 const router = Router()
 
@@ -47,6 +49,14 @@ router.post('/', auth, async (req: Request, res: Response, next: NextFunction) =
       return next(createError(400, `Esta clase no se imparte el día seleccionado`))
     }
 
+    // 2b. Verificar vigencia de la clase (fecha de inicio / fin)
+    if (!isClassActiveOn(cls, toLocalDateString(parsedDate))) {
+      const msg = cls.startDate && toLocalDateString(parsedDate) < toRangeDateString(cls.startDate)
+        ? `Esta clase inicia el ${toRangeDateString(cls.startDate)}`
+        : 'Esta clase ya no está disponible en esa fecha'
+      return next(createError(400, msg))
+    }
+
     // 3. Verificar que la clase sea en el futuro con al menos 60 min de anticipación
     const classDateTime = getClassDateTime(parsedDate, cls.startTime)
     const now = new Date()
@@ -59,7 +69,7 @@ router.post('/', auth, async (req: Request, res: Response, next: NextFunction) =
       return next(createError(400, 'Reserva cerrada. La clase comienza en menos de 60 minutos'))
     }
 
-    // 4. Verificar suscripción activa
+    // 4. Verificar con qué se paga la clase: primero la cortesía, luego el paquete
     const subscription = await prisma.subscription.findFirst({
       where: {
         userId,
@@ -72,7 +82,15 @@ router.post('/', auth, async (req: Request, res: Response, next: NextFunction) =
       },
     })
 
-    if (!subscription) {
+    const student = await prisma.user.findUnique({
+      where:  { id: userId },
+      select: { bonusClasses: true },
+    })
+
+    // La cortesía se gasta antes que el paquete pagado
+    const useBonus = (student?.bonusClasses ?? 0) > 0
+
+    if (!useBonus && !subscription) {
       return next(createError(403, 'Sin clases disponibles. Adquiere un paquete para continuar'))
     }
 
@@ -111,7 +129,7 @@ router.post('/', auth, async (req: Request, res: Response, next: NextFunction) =
       return next(createError(409, 'Ya tienes una clase a esa hora'))
     }
 
-    // 8. Transacción: crear booking + decrementar suscripción
+    // 8. Transacción: crear booking + descontar cortesía o suscripción
     const booking = await prisma.$transaction(async (tx) => {
       const newBooking = await tx.booking.create({
         data: {
@@ -119,13 +137,32 @@ router.post('/', auth, async (req: Request, res: Response, next: NextFunction) =
           classId: cls.id,
           date: parsedDate,
           status: 'CONFIRMED',
+          usedBonus: useBonus,
         },
         include: {
           class: { select: { name: true, startTime: true, instructor: true } },
         },
       })
 
-      if (subscription.classesLeft !== null) {
+      if (useBonus) {
+        await tx.user.update({
+          where: { id: userId },
+          data:  { bonusClasses: { decrement: 1 } },
+        })
+
+        // Marca el comprobante más antiguo sin usar como canjeado
+        const pending = await tx.reward.findFirst({
+          where:   { userId, type: 'FREE_CLASS', isRedeemed: false },
+          orderBy: { createdAt: 'asc' },
+          select:  { id: true },
+        })
+        if (pending) {
+          await tx.reward.update({
+            where: { id: pending.id },
+            data:  { isRedeemed: true, redeemedAt: new Date() },
+          })
+        }
+      } else if (subscription && subscription.classesLeft !== null) {
         await tx.subscription.update({
           where: { id: subscription.id },
           data: { classesLeft: { decrement: 1 } },
@@ -181,7 +218,9 @@ router.delete('/:id', auth, async (req: Request, res: Response, next: NextFuncti
     const canRefund = diffHours > 3
 
     // 5. Transacción: cancelar + devolver clase si aplica
-    const subscription = canRefund
+    const refundBonus = canRefund && booking.usedBonus
+
+    const subscription = canRefund && !booking.usedBonus
       ? await prisma.subscription.findFirst({
           where: { userId, isActive: true, classesLeft: { not: null } },
         })
@@ -196,7 +235,25 @@ router.delete('/:id', auth, async (req: Request, res: Response, next: NextFuncti
         },
       })
 
-      if (canRefund && subscription && subscription.classesLeft !== null) {
+      if (refundBonus) {
+        // Se pagó con cortesía: se devuelve el crédito y el comprobante vuelve a estar vigente
+        await tx.user.update({
+          where: { id: userId },
+          data:  { bonusClasses: { increment: 1 } },
+        })
+
+        const usedReward = await tx.reward.findFirst({
+          where:   { userId, type: 'FREE_CLASS', isRedeemed: true },
+          orderBy: { redeemedAt: 'desc' },
+          select:  { id: true },
+        })
+        if (usedReward) {
+          await tx.reward.update({
+            where: { id: usedReward.id },
+            data:  { isRedeemed: false, redeemedAt: null },
+          })
+        }
+      } else if (canRefund && subscription && subscription.classesLeft !== null) {
         await tx.subscription.update({
           where: { id: subscription.id },
           data: { classesLeft: { increment: 1 } },
@@ -208,7 +265,8 @@ router.delete('/:id', auth, async (req: Request, res: Response, next: NextFuncti
 
     return res.json({
       booking: updatedBooking,
-      classRefunded: canRefund && subscription !== null,
+      classRefunded: refundBonus || (canRefund && subscription !== null),
+      bonusRefunded: refundBonus,
     })
   } catch (err) {
     return next(err)
@@ -233,7 +291,7 @@ router.get('/me', auth, async (req: Request, res: Response, next: NextFunction) 
       where.status = status as 'CONFIRMED' | 'CANCELLED' | 'ATTENDED'
     }
 
-    const [bookings, total] = await Promise.all([
+    const [bookings, total, coachAvatarsByName] = await Promise.all([
       prisma.booking.findMany({
         where,
         include: {
@@ -244,6 +302,7 @@ router.get('/me', auth, async (req: Request, res: Response, next: NextFunction) 
               instructor: true,
               startTime: true,
               durationMin: true,
+              coach: { select: { avatar: true } },
             },
           },
         },
@@ -252,10 +311,23 @@ router.get('/me', auth, async (req: Request, res: Response, next: NextFunction) 
         skip,
       }),
       prisma.booking.count({ where }),
+      getCoachAvatarsByName(),
     ])
 
+    // Aplanar la foto de la coach dentro de `class`
+    const data = bookings.map((b) => {
+      const { coach, ...cls } = b.class
+      return {
+        ...b,
+        class: {
+          ...cls,
+          coachAvatar: resolveCoachAvatar({ instructor: cls.instructor, coach }, coachAvatarsByName),
+        },
+      }
+    })
+
     return res.json({
-      data: bookings,
+      data,
       pagination: {
         total,
         page: parseInt(page as string) || 1,

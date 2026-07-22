@@ -1,6 +1,8 @@
 import { Router, Request, Response, NextFunction } from 'express'
 import { prisma } from '../lib/prisma'
 import { auth } from '../middleware/auth'
+import { isClassActiveOn, toLocalDateString } from '../lib/classDates'
+import { getCoachAvatarsByName, resolveCoachAvatar } from '../lib/coachAvatar'
 
 const router = Router()
 
@@ -21,7 +23,7 @@ function getWeekDays(baseDate: Date): Date[] {
 }
 
 function toISODate(date: Date): string {
-  return date.toISOString().split('T')[0]
+  return toLocalDateString(date)
 }
 
 // ─── GET /api/classes/week ────────────────────────────────────────────────────
@@ -38,10 +40,14 @@ router.get('/week', auth, async (req: Request, res: Response, next: NextFunction
     const weekDays = getWeekDays(baseDate)
     const userId = req.user!.id
 
-    // Obtener todas las clases activas una sola vez
-    const allClasses = await prisma.class.findMany({
-      where: { isActive: true },
-    })
+    // Obtener todas las clases activas una sola vez (con la foto de su coach)
+    const [allClasses, coachAvatarsByName] = await Promise.all([
+      prisma.class.findMany({
+        where: { isActive: true },
+        include: { coach: { select: { avatar: true } } },
+      }),
+      getCoachAvatarsByName(),
+    ])
 
     // Obtener todos los bookings de la semana del usuario
     const weekStart = weekDays[0]
@@ -83,7 +89,7 @@ router.get('/week', auth, async (req: Request, res: Response, next: NextFunction
       const dateStr = toISODate(day)
 
       const dayClasses = allClasses
-        .filter((c) => c.dayOfWeek === dow)
+        .filter((c) => c.dayOfWeek === dow && isClassActiveOn(c, dateStr))
         .map((c) => {
           const mapKey = `${c.id}::${dateStr}`
           const confirmedCount = confirmedCountMap.get(mapKey) ?? 0
@@ -98,6 +104,7 @@ router.get('/week', auth, async (req: Request, res: Response, next: NextFunction
             classId: c.id,
             name: c.name,
             instructor: c.instructor,
+            coachAvatar: resolveCoachAvatar(c, coachAvatarsByName),
             startTime: c.startTime,
             durationMin: c.durationMin,
             maxCapacity: c.maxCapacity,

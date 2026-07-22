@@ -5,7 +5,15 @@ import { prisma } from '../lib/prisma'
 import { auth } from '../middleware/auth'
 import { isAdmin } from '../middleware/isAdmin'
 import { createError } from '../middleware/errorHandler'
-import { getTier } from '../services/rewards'
+import { getTier, grantFreeClass, countCampaignClaims } from '../services/rewards'
+import { FREE_CLASS_CAMPAIGN, isCampaignOpen, REWARD_SOURCE } from '../lib/promo'
+import { sendPushToUser } from '../services/webpush'
+import {
+  isClassActiveOn,
+  parseRangeDate,
+  toLocalDateString,
+  toRangeDateString,
+} from '../lib/classDates'
 
 const router = Router()
 
@@ -36,11 +44,14 @@ router.get('/dashboard', async (_req: Request, res: Response, next: NextFunction
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0)
     const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999)
 
-    // Clases de hoy
-    const todaysClasses = await prisma.class.findMany({
-      where: { isActive: true, dayOfWeek: todayDOW },
-      orderBy: { startTime: 'asc' },
-    })
+    // Clases de hoy (solo las vigentes en la fecha de hoy)
+    const todayStr = toLocalDateString(now)
+    const todaysClasses = (
+      await prisma.class.findMany({
+        where: { isActive: true, dayOfWeek: todayDOW },
+        orderBy: { startTime: 'asc' },
+      })
+    ).filter((c) => isClassActiveOn(c, todayStr))
 
     const classesWithBookings = await Promise.all(
       todaysClasses.map(async (cls) => {
@@ -138,6 +149,7 @@ router.get('/students', async (req: Request, res: Response, next: NextFunction) 
           avatar: true,
           createdAt: true,
           totalClassesTaken: true,
+          bonusClasses: true,
           subscription: {
             select: {
               classesLeft: true,
@@ -167,6 +179,7 @@ router.get('/students', async (req: Request, res: Response, next: NextFunction) 
         createdAt: s.createdAt,
         totalBookings: s._count.bookings,
         totalClassesTaken: s.totalClassesTaken,
+        bonusClasses: s.bonusClasses,
         tier: tier.id,
         tierLabel: tier.label,
         subscription: s.subscription
@@ -325,6 +338,7 @@ router.get('/coaches', async (_req: Request, res: Response, next: NextFunction) 
         email: true,
         phone: true,
         role: true,
+        avatar: true,
         createdAt: true,
         coachClasses: {
           select: { id: true, name: true, dayOfWeek: true, startTime: true },
@@ -364,7 +378,7 @@ router.post('/coaches', async (req: Request, res: Response, next: NextFunction) 
         passwordHash,
         role: 'COACH',
       },
-      select: { id: true, name: true, email: true, phone: true, role: true, createdAt: true },
+      select: { id: true, name: true, email: true, phone: true, role: true, avatar: true, createdAt: true },
     })
 
     return res.status(201).json(coach)
@@ -378,6 +392,12 @@ const updateCoachSchema = z.object({
   name:  z.string().min(2).optional(),
   email: z.string().email().optional(),
   phone: z.string().nullable().optional(),
+  // Foto de la coach: data URL comprimida desde el cliente, o null para quitarla
+  avatar: z.string()
+    .max(200_000, 'La imagen es demasiado grande (máx ~150 KB)')
+    .refine((v) => v.startsWith('data:image/'), 'Formato de imagen inválido')
+    .nullable()
+    .optional(),
 })
 
 router.patch('/coaches/:id', async (req: Request, res: Response, next: NextFunction) => {
@@ -397,11 +417,12 @@ router.patch('/coaches/:id', async (req: Request, res: Response, next: NextFunct
     const updated = await prisma.user.update({
       where: { id: coachId },
       data: {
-        ...(body.name  !== undefined && { name: body.name }),
-        ...(body.email !== undefined && { email: body.email }),
-        ...(body.phone !== undefined && { phone: body.phone }),
+        ...(body.name   !== undefined && { name: body.name }),
+        ...(body.email  !== undefined && { email: body.email }),
+        ...(body.phone  !== undefined && { phone: body.phone }),
+        ...(body.avatar !== undefined && { avatar: body.avatar }),
       },
-      select: { id: true, name: true, email: true, phone: true, role: true, createdAt: true },
+      select: { id: true, name: true, email: true, phone: true, role: true, avatar: true, createdAt: true },
     })
 
     return res.json(updated)
@@ -495,6 +516,8 @@ router.get('/classes', async (_req: Request, res: Response, next: NextFunction) 
       dayOfWeek: c.dayOfWeek,
       dayLabel: DAY_LABELS[c.dayOfWeek],
       startTime: c.startTime,
+      startDate: c.startDate ? toRangeDateString(c.startDate) : null,
+      endDate: c.endDate ? toRangeDateString(c.endDate) : null,
       durationMin: c.durationMin,
       maxCapacity: c.maxCapacity,
       isActive: c.isActive,
@@ -510,26 +533,44 @@ router.get('/classes', async (_req: Request, res: Response, next: NextFunction) 
 })
 
 // ─── POST /api/admin/classes ──────────────────────────────────────────────────
+// "2026-08-01" → Date a medianoche UTC; "" y null significan «sin límite»
+const dateOnly = z.preprocess(
+  (v) => (v === '' ? null : v),
+  z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, 'Formato de fecha inválido (YYYY-MM-DD)')
+    .transform((v) => parseRangeDate(v) as Date)
+    .nullable()
+    .optional(),
+)
+
 const createClassSchema = z.object({
   name: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
   instructor: z.string().min(2, 'El instructor debe tener al menos 2 caracteres'),
   dayOfWeek: z.number().int().min(0).max(6),
   startTime: z.string().regex(/^\d{2}:\d{2}$/, 'Formato de hora inválido (HH:MM)'),
+  startDate: dateOnly,
+  endDate: dateOnly,
   durationMin: z.number().int().min(1).default(55),
   maxCapacity: z.number().int().min(1).max(30),
+  coachId: z.string().nullable().optional(),
 })
 
 router.post('/classes', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const body = createClassSchema.parse(req.body)
 
+    if (body.startDate && body.endDate && body.endDate < body.startDate) {
+      return next(createError(400, 'La fecha de fin no puede ser anterior a la de inicio'))
+    }
+
     const cls = await prisma.class.create({
       data: { ...body, isActive: true },
     })
 
-    res.status(201).json(cls)
+    return res.status(201).json(cls)
   } catch (err) {
-    next(err)
+    return next(err)
   }
 })
 
@@ -539,6 +580,8 @@ const updateClassSchema = z.object({
   instructor: z.string().min(2).optional(),
   dayOfWeek: z.number().int().min(0).max(6).optional(),
   startTime: z.string().regex(/^\d{2}:\d{2}$/).optional(),
+  startDate: dateOnly,
+  endDate: dateOnly,
   durationMin: z.number().int().min(1).optional(),
   maxCapacity: z.number().int().min(1).max(30).optional(),
   isActive: z.boolean().optional(),
@@ -552,6 +595,13 @@ router.patch('/classes/:id', async (req: Request, res: Response, next: NextFunct
     const existing = await prisma.class.findUnique({ where: { id: req.params['id'] } })
     if (!existing) {
       return next(createError(404, 'Clase no encontrada'))
+    }
+
+    // El rango resultante tras aplicar el patch debe seguir siendo coherente
+    const nextStart = body.startDate !== undefined ? body.startDate : existing.startDate
+    const nextEnd = body.endDate !== undefined ? body.endDate : existing.endDate
+    if (nextStart && nextEnd && nextEnd < nextStart) {
+      return next(createError(400, 'La fecha de fin no puede ser anterior a la de inicio'))
     }
 
     const updated = await prisma.class.update({
@@ -646,9 +696,28 @@ router.post('/rewards/redeem', async (req: Request, res: Response, next: NextFun
       })
     }
 
-    const updated = await prisma.reward.update({
-      where: { id: reward.id },
-      data:  { isRedeemed: true, redeemedAt: new Date() },
+    const updated = await prisma.$transaction(async (tx) => {
+      const r = await tx.reward.update({
+        where: { id: reward.id },
+        data:  { isRedeemed: true, redeemedAt: new Date() },
+      })
+
+      // Una clase de cortesía canjeada en recepción también gasta el crédito,
+      // para que no pueda usarse otra vez al reservar desde la app
+      if (reward.type === 'FREE_CLASS') {
+        const student = await tx.user.findUnique({
+          where:  { id: reward.userId },
+          select: { bonusClasses: true },
+        })
+        if ((student?.bonusClasses ?? 0) > 0) {
+          await tx.user.update({
+            where: { id: reward.userId },
+            data:  { bonusClasses: { decrement: 1 } },
+          })
+        }
+      }
+
+      return r
     })
 
     return res.json({
@@ -685,6 +754,67 @@ router.get('/rewards/lookup', async (req: Request, res: Response, next: NextFunc
       user:       reward.user,
       tierLabel:  getTier(reward.user.totalClassesTaken).label,
     })
+  } catch (err) {
+    return next(err)
+  }
+})
+
+// ─── GET /api/admin/promo/free-class ─────────────────────────────────────────
+// Datos para el QR de inauguración: URL a codificar, cupo y últimos canjes
+router.get('/promo/free-class', async (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    const FRONTEND_URL = process.env.FRONTEND_URL ?? 'http://localhost:5173'
+
+    const [claims, recent] = await Promise.all([
+      countCampaignClaims(),
+      prisma.reward.findMany({
+        where:   { source: REWARD_SOURCE.campaign },
+        orderBy: { createdAt: 'desc' },
+        take:    20,
+        select: {
+          id: true, code: true, isRedeemed: true, redeemedAt: true, createdAt: true,
+          user: { select: { id: true, name: true, email: true } },
+        },
+      }),
+    ])
+
+    return res.json({
+      url:       `${FRONTEND_URL}/promo/${FREE_CLASS_CAMPAIGN.slug}`,
+      slug:      FREE_CLASS_CAMPAIGN.slug,
+      headline:  FREE_CLASS_CAMPAIGN.headline,
+      isOpen:    isCampaignOpen(),
+      maxClaims: FREE_CLASS_CAMPAIGN.maxClaims,
+      claims,
+      redeemed:  recent.filter((r) => r.isRedeemed).length,
+      recent,
+    })
+  } catch (err) {
+    return next(err)
+  }
+})
+
+// ─── POST /api/admin/students/:id/gift-class ─────────────────────────────────
+// Regala 1 clase de cortesía a una alumna concreta
+router.post('/students/:id/gift-class', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const student = await prisma.user.findUnique({
+      where:  { id: req.params['id'] },
+      select: { id: true, name: true, role: true },
+    })
+
+    if (!student) return next(createError(404, 'Alumna no encontrada'))
+    if (student.role !== 'STUDENT') {
+      return next(createError(400, 'Solo se pueden regalar clases a alumnas'))
+    }
+
+    const { reward, bonusClasses } = await grantFreeClass(student.id, REWARD_SOURCE.gift)
+
+    sendPushToUser(student.id, {
+      title: '🎁 Tienes una clase de cortesía',
+      body:  'SODI te regaló una clase. Resérvala desde el horario.',
+    }).catch(() => null)
+
+    return res.status(201).json({ ok: true, code: reward.code, bonusClasses })
   } catch (err) {
     return next(err)
   }

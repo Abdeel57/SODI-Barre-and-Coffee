@@ -7,6 +7,7 @@ import { bookingsApi } from '../api'
 import { useStore } from '../store/useStore'
 import { Skeleton } from '../components/ui/Skeleton'
 import { Button } from '../components/ui/Button'
+import { CoachAvatar } from '../components/CoachAvatar'
 import type { Booking } from '../types'
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -108,9 +109,16 @@ const BookingCard = memo(function BookingCard({ booking, onCancelled }: BookingC
       </div>
 
       <h3 className="text-title text-[20px] text-noir leading-tight">{booking.class.name}</h3>
-      <p className="text-label text-stone mt-0.5">
-        {booking.class.instructor} · {formatTime(booking.class.startTime)} · {booking.class.durationMin} min
-      </p>
+      <div className="flex items-center gap-1.5 mt-1">
+        <CoachAvatar
+          name={booking.class.instructor}
+          avatar={booking.class.coachAvatar}
+          size={22}
+        />
+        <p className="text-label text-stone">
+          {booking.class.instructor} · {formatTime(booking.class.startTime)} · {booking.class.durationMin} min
+        </p>
+      </div>
 
       {canCancel(booking) && (
         <div className="mt-3">

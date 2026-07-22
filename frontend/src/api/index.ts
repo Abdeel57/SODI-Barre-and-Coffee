@@ -153,6 +153,11 @@ export const rewardsApi = {
   mine: () => api.get('/api/rewards/mine'),
 }
 
+export const promoApi = {
+  get:   (slug: string) => api.get(`/api/promo/${slug}`),
+  claim: (slug: string) => api.post(`/api/promo/${slug}/claim`),
+}
+
 export const profileApi = {
   getHealth:          ()                        => api.get('/api/profile/health'),
   updateHealth:       (data: HealthProfileData) => api.put('/api/profile/health', data),

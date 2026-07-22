@@ -1,6 +1,6 @@
 import { ReactNode } from 'react'
 import { NavLink, useNavigate, Outlet } from 'react-router-dom'
-import { LayoutDashboard, Calendar, Users, CreditCard, UserCheck, LogOut, QrCode } from 'lucide-react'
+import { LayoutDashboard, Calendar, Users, CreditCard, UserCheck, LogOut, QrCode, Gift } from 'lucide-react'
 import { clsx } from 'clsx'
 import { useStore } from '../../store/useStore'
 import { authApi } from '../../api'
@@ -12,6 +12,7 @@ const NAV_ITEMS = [
   { to: '/admin/coaches',   icon: UserCheck,       label: 'Coaches'   },
   { to: '/admin/payments',  icon: CreditCard,      label: 'Pagos'     },
   { to: '/admin/redeem',    icon: QrCode,          label: 'Premios'   },
+  { to: '/admin/promo',     icon: Gift,            label: 'Promo QR'  },
 ]
 
 interface AdminLayoutProps {

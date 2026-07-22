@@ -5,13 +5,63 @@ import { packagesApi } from '../api'
 import { useStore } from '../store/useStore'
 import { Skeleton } from '../components/ui/Skeleton'
 import { Button } from '../components/ui/Button'
-import type { Package, Subscription } from '../types'
+import type { Package, Promo, Subscription } from '../types'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function fmt(n: number) {
   return new Intl.NumberFormat('es-MX', {
     style: 'currency', currency: 'MXN', maximumFractionDigits: 0,
   }).format(n)
+}
+
+/** Precio que se cobra hoy — cae al precio de lista si el back no envía promo. */
+function priceOf(pkg: Package) {
+  return pkg.finalPriceMXN ?? pkg.priceMXN
+}
+
+// ─── Banner de promo de inauguración ──────────────────────────────────────────
+function PromoBanner({ promo }: { promo: Promo }) {
+  return (
+    <div className="mx-4 mt-5 relative overflow-hidden rounded-2xl border border-nude/40 bg-gradient-to-br from-nude-light via-nude-light to-white">
+      {/* Círculo decorativo */}
+      <div className="absolute -right-10 -top-12 w-40 h-40 rounded-full bg-nude/15" />
+
+      <div className="relative px-5 py-5 flex items-center gap-4">
+        <div className="flex-1 min-w-0">
+          <span className="inline-flex items-center gap-1.5 text-nude-dark text-[10px] font-body uppercase tracking-widest">
+            <Sparkles size={11} />
+            {promo.headline}
+          </span>
+          <p className="font-display text-[24px] font-light text-noir leading-tight mt-1.5">
+            {promo.discountPct}% de descuento
+          </p>
+          <p className="text-label text-stone text-[11px] mt-1 leading-relaxed">
+            En todos los paquetes · Se aplica solo al pagar
+          </p>
+        </div>
+
+        <div className="shrink-0 flex flex-col items-center justify-center w-[68px] h-[68px] rounded-full bg-noir text-white">
+          <span className="font-display text-[26px] font-light leading-none">
+            −{promo.discountPct}
+          </span>
+          <span className="text-[9px] font-body tracking-widest text-nude">%</span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Pill de descuento ────────────────────────────────────────────────────────
+function DiscountPill({ pct, dark = false }: { pct: number; dark?: boolean }) {
+  return (
+    <span
+      className={`inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[10px] font-body tracking-widest uppercase ${
+        dark ? 'bg-nude text-noir' : 'bg-noir text-white'
+      }`}
+    >
+      −{pct}%
+    </span>
+  )
 }
 
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
@@ -60,7 +110,10 @@ function IndividualCard({
       }`}
     >
       <div className="flex-1 min-w-0">
-        <p className="font-body text-[15px] font-medium text-noir leading-tight">{pkg.name}</p>
+        <div className="flex items-center gap-2">
+          <p className="font-body text-[15px] font-medium text-noir leading-tight">{pkg.name}</p>
+          {pkg.promo && <DiscountPill pct={pkg.promo.discountPct} />}
+        </div>
         {pkg.description && (
           <p className="text-label text-stone text-[11px] mt-0.5 leading-relaxed">{pkg.description}</p>
         )}
@@ -68,9 +121,16 @@ function IndividualCard({
       </div>
 
       <div className="flex flex-col items-end gap-2 shrink-0">
-        <span className="font-display text-[22px] font-light text-noir leading-none">
-          {fmt(pkg.priceMXN)}
-        </span>
+        <div className="flex flex-col items-end leading-none">
+          {pkg.promo && (
+            <span className="font-body text-[12px] text-stone/60 line-through">
+              {fmt(pkg.promo.originalPriceMXN)}
+            </span>
+          )}
+          <span className="font-display text-[22px] font-light text-noir leading-none mt-0.5">
+            {fmt(priceOf(pkg))}
+          </span>
+        </div>
         <Button
           variant={isCurrentPlan ? 'secondary' : 'primary'}
           size="sm"
@@ -100,8 +160,10 @@ function PackageCard({
   loadingId: string | null
   onSelect: (id: string) => void
 }) {
-  const pricePerClass = pkg.classCount ? Math.round(pkg.priceMXN / pkg.classCount) : null
+  const price = priceOf(pkg)
+  const pricePerClass = pkg.classCount ? Math.round(price / pkg.classCount) : null
   const isPopular = badge === 'popular'
+  const promo = pkg.promo
 
   return (
     <div
@@ -111,22 +173,25 @@ function PackageCard({
           : 'bg-white border border-nude-border'
       } ${isCurrentPlan ? 'opacity-60' : ''}`}
     >
-      {/* Badge */}
-      {badge && (
-        <div
-          className={`flex items-center gap-1.5 px-4 pt-4 pb-0`}
-        >
-          {isPopular ? (
-            <span className="flex items-center gap-1 text-nude text-[10px] font-body tracking-widest uppercase">
-              <Star size={10} fill="currentColor" />
-              Más popular
-            </span>
+      {/* Badges */}
+      {(badge || promo) && (
+        <div className="flex items-center justify-between gap-2 px-4 pt-4 pb-0">
+          {badge ? (
+            isPopular ? (
+              <span className="flex items-center gap-1 text-nude text-[10px] font-body tracking-widest uppercase">
+                <Star size={10} fill="currentColor" />
+                Más popular
+              </span>
+            ) : (
+              <span className="flex items-center gap-1 text-nude-dark text-[10px] font-body tracking-widest uppercase">
+                <Sparkles size={10} />
+                Mejor precio/clase
+              </span>
+            )
           ) : (
-            <span className="flex items-center gap-1 text-nude-dark text-[10px] font-body tracking-widest uppercase">
-              <Sparkles size={10} />
-              Mejor precio/clase
-            </span>
+            <span />
           )}
+          {promo && <DiscountPill pct={promo.discountPct} dark={isPopular} />}
         </div>
       )}
 
@@ -148,8 +213,17 @@ function PackageCard({
             )}
           </div>
           <div className="text-right shrink-0">
+            {promo && (
+              <p
+                className={`font-body text-[13px] line-through leading-none mb-1 ${
+                  isPopular ? 'text-white/40' : 'text-stone/60'
+                }`}
+              >
+                {fmt(promo.originalPriceMXN)}
+              </p>
+            )}
             <p className={`font-display text-[32px] font-light leading-none ${isPopular ? 'text-white' : 'text-noir'}`}>
-              {fmt(pkg.priceMXN)}
+              {fmt(price)}
             </p>
             <p className={`text-label text-[10px] ${isPopular ? 'text-white/50' : 'text-stone/60'}`}>MXN</p>
           </div>
@@ -179,6 +253,23 @@ function PackageCard({
               </span>
             </div>
           ))}
+
+          {promo && (
+            <div className="flex items-center gap-2 pt-1">
+              <div
+                className={`w-4 h-4 rounded-full flex items-center justify-center shrink-0 ${
+                  isPopular ? 'bg-nude' : 'bg-noir'
+                }`}
+              >
+                <Sparkles size={9} className={isPopular ? 'text-noir' : 'text-nude'} />
+              </div>
+              <span
+                className={`text-[13px] font-body font-medium ${isPopular ? 'text-nude' : 'text-nude-dark'}`}
+              >
+                Ahorras {fmt(promo.savingsMXN)} por inauguración
+              </span>
+            </div>
+          )}
         </div>
 
         {/* CTA */}
@@ -285,6 +376,9 @@ export default function PackagesPage() {
 
   const currentPkgId = subscription?.isActive ? subscription.packageId : null
 
+  // La promo llega desde el backend adjunta a cada paquete
+  const promo = packages.find((p) => p.promo)?.promo ?? null
+
   // Progress bar for active subscription
   const currentPkg = subscription ? packages.find((p) => p.id === subscription.packageId) : null
   const progressPct =
@@ -302,6 +396,9 @@ export default function PackagesPage() {
           Elige el plan que mejor se adapte a tu ritmo.
         </p>
       </header>
+
+      {/* Promo de inauguración */}
+      {!loading && promo && <PromoBanner promo={promo} />}
 
       {/* Active subscription banner */}
       {!loading && subscription?.isActive && (
@@ -330,7 +427,11 @@ export default function PackagesPage() {
       {/* ── Clases individuales ──────────────────────────────────────────────── */}
       <SectionHeader
         title="Clases individuales"
-        subtitle="Sin compromiso · Válido 1 mes"
+        subtitle={
+          promo
+            ? `Sin compromiso · Válido 1 mes · −${promo.discountPct}% aplicado`
+            : 'Sin compromiso · Válido 1 mes'
+        }
       />
 
       <div className="px-4 flex flex-col gap-2.5">
@@ -358,7 +459,11 @@ export default function PackagesPage() {
       {/* ── Paquetes de clases ───────────────────────────────────────────────── */}
       <SectionHeader
         title="Paquetes de clases"
-        subtitle="Ahorra más conforme compras más clases"
+        subtitle={
+          promo
+            ? 'Precios de inauguración · Ahorra más conforme compras más clases'
+            : 'Ahorra más conforme compras más clases'
+        }
       />
 
       <div className="px-4 flex flex-col gap-3 pb-2">
@@ -387,6 +492,21 @@ export default function PackagesPage() {
 
       {/* Footer note */}
       <div className="px-5 py-6">
+        {promo && (
+          <p className="text-label text-stone/60 text-[11px] text-center leading-relaxed mb-2">
+            Promo de inauguración: −{promo.discountPct}% aplicado automáticamente al pagar.
+            No acumulable con otras promociones.
+            {promo.endsAt && (
+              <>
+                {' '}Vigente hasta el{' '}
+                {new Date(promo.endsAt).toLocaleDateString('es-MX', {
+                  day: 'numeric', month: 'long',
+                })}
+                .
+              </>
+            )}
+          </p>
+        )}
         <p className="text-label text-stone/50 text-[11px] text-center leading-relaxed">
           Los paquetes son personales e intransferibles.{'\n'}
           Todos los precios incluyen IVA. · SODI Barre & Coffee

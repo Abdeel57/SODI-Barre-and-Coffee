@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { Search, ChevronDown, ChevronUp, Trash2, KeyRound, Eye, EyeOff } from 'lucide-react'
+import { Search, ChevronDown, ChevronUp, Trash2, KeyRound, Eye, EyeOff, Gift } from 'lucide-react'
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { adminApi } from '../../api/admin'
@@ -386,12 +386,14 @@ function StudentCard({
   onRoleChanged,
   onDelete,
   onPasswordReset,
+  onGiftClass,
 }: {
   student: AdminStudent
   onAdjust: (s: AdminStudent) => void
   onRoleChanged: () => void
   onDelete: (s: AdminStudent) => void
   onPasswordReset: (s: AdminStudent) => void
+  onGiftClass: (s: AdminStudent) => void
 }) {
   const [expanded, setExpanded] = useState(false)
   const sub = student.subscription
@@ -472,6 +474,10 @@ function StudentCard({
               <p className="text-label text-noir">{student.totalBookings}</p>
             </div>
             <div>
+              <p className="text-stone text-xs">Cortesías</p>
+              <p className="text-label text-noir">{student.bonusClasses ?? 0}</p>
+            </div>
+            <div>
               <p className="text-stone text-xs">Miembro desde</p>
               <p className="text-label text-noir capitalize">{memberSince}</p>
             </div>
@@ -517,6 +523,15 @@ function StudentCard({
               <KeyRound size={13} />
               Contraseña
             </button>
+            {student.role === 'STUDENT' && (
+              <button
+                onClick={() => onGiftClass(student)}
+                className="flex items-center gap-1.5 text-nude-dark text-[12px] px-3 py-1.5 rounded-sm border border-nude hover:bg-nude-light transition-colors"
+              >
+                <Gift size={13} />
+                Regalar clase
+              </button>
+            )}
             <button
               onClick={() => onDelete(student)}
               className="flex items-center gap-1.5 text-red-500 text-[12px] px-3 py-1.5 rounded-sm border border-red-200 hover:bg-red-50 transition-colors ml-auto"
@@ -563,6 +578,17 @@ export default function AdminStudentsPage() {
     debounceRef.current = setTimeout(() => fetchStudents(value), 300)
   }
 
+  async function handleGiftClass(student: AdminStudent) {
+    if (!confirm(`¿Regalar una clase de cortesía a ${student.name}?`)) return
+    try {
+      await adminApi.giftFreeClass(student.id)
+      showToast(`Clase de cortesía enviada a ${student.name}`, 'success')
+      fetchStudents(search)
+    } catch {
+      showToast('Error al regalar la clase', 'error')
+    }
+  }
+
   return (
     <div className="min-h-screen bg-off-white pb-8 page-enter">
       <header className="px-4 pt-8 pb-4">
@@ -601,6 +627,7 @@ export default function AdminStudentsPage() {
               onRoleChanged={() => fetchStudents(search)}
               onDelete={setDeleteTarget}
               onPasswordReset={setPasswordTarget}
+              onGiftClass={handleGiftClass}
             />
           ))}
         </div>

@@ -14,6 +14,7 @@ import { Skeleton } from './components/ui/Skeleton'
 const LandingPage    = lazy(() => import('./pages/LandingPage'))
 const LoginPage      = lazy(() => import('./pages/LoginPage'))
 const RegisterPage = lazy(() => import('./pages/RegisterPage'))
+const PromoClaimPage = lazy(() => import('./pages/PromoClaimPage'))
 const SchedulePage = lazy(() => import('./pages/SchedulePage'))
 const BookingsPage = lazy(() => import('./pages/BookingsPage'))
 const PackagesPage = lazy(() => import('./pages/PackagesPage'))
@@ -24,6 +25,7 @@ const AdminStudentsPage  = lazy(() => import('./pages/admin/StudentsPage'))
 const AdminPaymentsPage  = lazy(() => import('./pages/admin/PaymentsPage'))
 const AdminCoachesPage    = lazy(() => import('./pages/admin/CoachesPage'))
 const AdminRedeemPage     = lazy(() => import('./pages/admin/RedeemPage'))
+const AdminPromoPage      = lazy(() => import('./pages/admin/PromoPage'))
 const CoachDashboardPage  = lazy(() => import('./pages/coach/DashboardPage'))
 const CoachAttendancePage = lazy(() => import('./pages/coach/AttendancePage'))
 const OnboardingOverlay   = lazy(() => import('./components/OnboardingOverlay'))
@@ -93,6 +95,8 @@ export default function App() {
           {/* Public */}
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
+          {/* Landing del QR de inauguración — accesible sin sesión */}
+          <Route path="/promo/:slug" element={<PromoClaimPage />} />
 
           {/* Inicio — redirige según rol o muestra landing */}
           <Route path="/" element={<SmartRedirect />} />
@@ -110,6 +114,7 @@ export default function App() {
             <Route path="coaches"   element={<AdminCoachesPage />} />
             <Route path="payments"  element={<AdminPaymentsPage />} />
             <Route path="redeem"    element={<AdminRedeemPage />} />
+            <Route path="promo"     element={<AdminPromoPage />} />
           </Route>
 
           {/* Coach */}

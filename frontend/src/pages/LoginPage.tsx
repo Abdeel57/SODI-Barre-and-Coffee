@@ -1,5 +1,5 @@
 import { useState, FormEvent } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { AxiosError } from 'axios'
 import { authApi } from '../api'
 import { useStore } from '../store/useStore'
@@ -7,8 +7,15 @@ import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
 import type { User } from '../types'
 
+/** Solo rutas internas — evita redirigir a un dominio externo con ?next= */
+function safeNext(value: string | null): string | null {
+  return value && value.startsWith('/') && !value.startsWith('//') ? value : null
+}
+
 export default function LoginPage() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const next = safeNext(searchParams.get('next'))
   const setAuth = useStore((s) => s.setAuth)
   const showToast = useStore((s) => s.showToast)
 
@@ -24,8 +31,9 @@ export default function LoginPage() {
       const res = await authApi.login({ email, password })
       const { user, accessToken } = res.data as { user: User; accessToken: string }
       setAuth(user, accessToken)
-      const dest = user.role === 'ADMIN' ? '/admin/dashboard' : user.role === 'COACH' ? '/coach/dashboard' : '/schedule'
-      navigate(dest, { replace: true })
+      const home = user.role === 'ADMIN' ? '/admin/dashboard' : user.role === 'COACH' ? '/coach/dashboard' : '/schedule'
+      // Si venía de un QR/enlace (?next=), regresa ahí
+      navigate(next ?? home, { replace: true })
     } catch (err) {
       const error = err as AxiosError<{ error: string }>
       const message = error.response?.data?.error ?? 'Error al iniciar sesión'
@@ -98,7 +106,7 @@ export default function LoginPage() {
           <p className="text-label text-stone text-center mt-5">
             ¿No tienes cuenta?{' '}
             <Link
-              to="/register"
+              to={next ? `/register?next=${encodeURIComponent(next)}` : '/register'}
               className="text-nude-dark hover:text-noir transition-colors underline underline-offset-2"
             >
               Crear cuenta

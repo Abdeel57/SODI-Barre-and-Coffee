@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { WifiOff, CalendarX } from 'lucide-react'
+import { WifiOff, CalendarX, Gift } from 'lucide-react'
 import { useStore } from '../store/useStore'
 import { useSchedule } from '../hooks/useSchedule'
 import { WeekCalendar } from '../components/WeekCalendar'
@@ -44,6 +44,7 @@ export default function SchedulePage() {
   const {
     week,
     subscription,
+    bonusClasses,
     loading,
     error,
     bookingSlot,
@@ -125,7 +126,19 @@ export default function SchedulePage() {
           </p>
         </div>
       )}
-      {!loading && !subscription && (
+      {!loading && bonusClasses > 0 && (
+        <div className="mx-4 mt-4 rounded-lg bg-noir px-4 py-3 flex items-center gap-2.5">
+          <Gift size={16} strokeWidth={1.5} className="text-nude shrink-0" />
+          <p className="text-label text-white/85 text-[13px]">
+            Tienes{' '}
+            <span className="text-nude font-medium">
+              {bonusClasses} clase{bonusClasses > 1 ? 's' : ''} de cortesía
+            </span>
+            {' '}— resérvala sin pagar
+          </p>
+        </div>
+      )}
+      {!loading && !subscription && bonusClasses === 0 && (
         <div className="mx-4 mt-4 rounded-lg bg-nude-light border border-nude-border px-4 py-3">
           <p className="text-label text-stone">
             Sin paquete activo.{' '}
@@ -195,6 +208,7 @@ export default function SchedulePage() {
       <ClassDetailSheet
         slot={bookingSlot}
         subscription={subscription}
+        bonusClasses={bonusClasses}
         bookingLoading={bookingLoading}
         cancelLoadingId={cancelLoadingId}
         onBook={handleBook}

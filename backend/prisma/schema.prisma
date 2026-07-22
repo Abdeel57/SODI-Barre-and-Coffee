@@ -20,6 +20,8 @@ model User {
   birthDate           DateTime?
   onboardingCompleted Boolean        @default(false)
   totalClassesTaken   Int            @default(0)
+  /// Clases de cortesía disponibles (promo de inauguración, regalos del staff)
+  bonusClasses        Int            @default(0)
   avatar              String?
   createdAt           DateTime       @default(now())
   bookings            Booking[]
@@ -38,7 +40,11 @@ model Reward {
   isRedeemed Boolean    @default(false)
   redeemedAt DateTime?
   createdAt  DateTime   @default(now())
+  /// Origen: MILESTONE | PROMO_INAUGURACION | ADMIN_GIFT
+  source     String     @default("MILESTONE")
   user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, source])
 }
 
 model HealthProfile {
@@ -64,6 +70,8 @@ model Class {
   instructor  String
   dayOfWeek   Int       // 0=Dom 1=Lun ... 6=Sáb
   startTime   String    // "09:00"
+  startDate   DateTime? // 1ª fecha en que se imparte (null = siempre)
+  endDate     DateTime? // última fecha inclusive (null = sin fin)
   durationMin Int       @default(55)
   maxCapacity Int       @default(12)
   isActive    Boolean   @default(true)
@@ -79,6 +87,8 @@ model Booking {
   date      DateTime
   status    BookingStatus @default(CONFIRMED)
   createdAt DateTime      @default(now())
+  /// true = se pagó con una clase de cortesía, no con el paquete
+  usedBonus Boolean       @default(false)
   user      User          @relation(fields: [userId], references: [id])
   class     Class         @relation(fields: [classId], references: [id])
 
@@ -145,4 +155,5 @@ enum PaymentStatus {
 
 enum RewardType {
   CAFE_FREE
+  FREE_CLASS
 }

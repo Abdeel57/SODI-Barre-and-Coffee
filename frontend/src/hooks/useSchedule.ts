@@ -6,6 +6,8 @@ import type { WeekDay, ClassSlot, Subscription } from '../types'
 interface ScheduleState {
   week: WeekDay[]
   subscription: Subscription | null
+  /** Clases de cortesía disponibles — se pueden usar sin paquete activo. */
+  bonusClasses: number
   loading: boolean
   error: boolean
 }
@@ -15,6 +17,7 @@ export function useSchedule() {
   const [state, setState] = useState<ScheduleState>({
     week: [],
     subscription: null,
+    bonusClasses: 0,
     loading: true,
     error: false,
   })
@@ -35,6 +38,7 @@ export function useSchedule() {
         setState({
           week: weekRes.data.week as WeekDay[],
           subscription: (subRes?.data?.subscription as Subscription) ?? null,
+          bonusClasses: (subRes?.data?.bonusClasses as number) ?? 0,
           loading: false,
           error: false,
         })

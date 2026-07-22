@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Bell, LogOut, Package, Calendar, Heart, KeyRound, ChevronRight, ChevronDown, Smartphone, Coffee, Camera, Trash2 } from 'lucide-react'
+import { Bell, LogOut, Package, Calendar, Heart, KeyRound, ChevronRight, ChevronDown, Smartphone, Coffee, Camera, Trash2, Gift } from 'lucide-react'
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { clsx } from 'clsx'
@@ -14,6 +14,7 @@ import { Input } from '../components/ui/Input'
 import { BottomSheet } from '../components/ui/BottomSheet'
 import { TierFrame } from '../components/TierFrame'
 import { TierBadge } from '../components/TierBadge'
+import { compressImage } from '../lib/image'
 import type { Subscription, PaymentHistory, HealthProfile, MyRewardsData, TierId } from '../types'
 import { TIERS, TIER_ICONS, getTierInfo } from '../types'
 
@@ -230,33 +231,6 @@ export default function ProfilePage() {
   }
 
   // ── Avatar helpers ────────────────────────────────────────────────────────
-  // Uses FileReader (data: URL) instead of createObjectURL to avoid CSP blob: restriction
-  function compressImage(file: File): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader()
-      reader.onerror = reject
-      reader.onload = (ev) => {
-        const dataUrl = ev.target?.result as string
-        const img = new Image()
-        img.onerror = reject
-        img.onload = () => {
-          const SIZE = 300
-          const canvas = document.createElement('canvas')
-          canvas.width  = SIZE
-          canvas.height = SIZE
-          const ctx = canvas.getContext('2d')!
-          const side = Math.min(img.width, img.height)
-          const sx   = (img.width  - side) / 2
-          const sy   = (img.height - side) / 2
-          ctx.drawImage(img, sx, sy, side, side, 0, 0, SIZE, SIZE)
-          resolve(canvas.toDataURL('image/jpeg', 0.75))
-        }
-        img.src = dataUrl
-      }
-      reader.readAsDataURL(file)
-    })
-  }
-
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
@@ -298,6 +272,10 @@ export default function ProfilePage() {
 
   // Unredeemed café reward
   const cafeReward = rewards?.rewards.find((r) => r.type === 'CAFE_FREE' && !r.isRedeemed) ?? null
+  const cafesRedeemed = rewards?.rewards.filter((r) => r.type === 'CAFE_FREE' && r.isRedeemed).length ?? 0
+
+  // Clases de cortesía disponibles (promo de inauguración / regalo del staff)
+  const bonusClasses = rewards?.bonusClasses ?? 0
 
   // Detect if app is running as installed PWA
   const isAppInstalled =
@@ -579,6 +557,21 @@ export default function ProfilePage() {
                       })}
                     </div>
 
+                    {/* Clases de cortesía (promo de inauguración / regalo del staff) */}
+                    {bonusClasses > 0 && (
+                      <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-noir">
+                        <Gift size={20} strokeWidth={1.5} className="text-nude shrink-0" />
+                        <div className="flex-1">
+                          <p className="text-white text-[13px] font-body font-medium">
+                            {bonusClasses} clase{bonusClasses > 1 ? 's' : ''} de cortesía
+                          </p>
+                          <p className="text-white/60 text-[11px] font-body">
+                            Se aplica sola al reservar — no necesitas código
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
                     {/* Café reward */}
                     {cafeReward && (
                       <button
@@ -604,9 +597,9 @@ export default function ProfilePage() {
                       </div>
                     )}
 
-                    {(rewards?.rewards.filter((r) => r.isRedeemed).length ?? 0) > 0 && (
+                    {cafesRedeemed > 0 && (
                       <p className="text-stone text-[11px] font-body text-center">
-                        {rewards!.rewards.filter((r) => r.isRedeemed).length} café{rewards!.rewards.filter((r) => r.isRedeemed).length > 1 ? 's' : ''} canjeado{rewards!.rewards.filter((r) => r.isRedeemed).length > 1 ? 's' : ''} anteriormente ✓
+                        {cafesRedeemed} café{cafesRedeemed > 1 ? 's' : ''} canjeado{cafesRedeemed > 1 ? 's' : ''} anteriormente ✓
                       </p>
                     )}
                   </div>

@@ -33,3 +33,23 @@ export function auth(req: Request, res: Response, next: NextFunction): void {
     res.status(401).json({ error: 'Token inválido o expirado' })
   }
 }
+
+/**
+ * Adjunta `req.user` si viene un token válido, pero nunca bloquea.
+ * Para endpoints públicos que muestran algo distinto con sesión iniciada.
+ */
+export function optionalAuth(req: Request, _res: Response, next: NextFunction): void {
+  const authHeader = req.headers.authorization
+  const secret = process.env.JWT_SECRET
+
+  if (authHeader?.startsWith('Bearer ') && secret) {
+    try {
+      const payload = jwt.verify(authHeader.split(' ')[1], secret) as TokenPayload
+      req.user = { id: payload.id, email: payload.email, role: payload.role }
+    } catch {
+      // token inválido → se trata como anónimo
+    }
+  }
+
+  next()
+}

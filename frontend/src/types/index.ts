@@ -2,6 +2,8 @@ export interface ClassSlot {
   classId: string
   name: string
   instructor: string
+  /** Foto de la coach (data URL) — null si no tiene. */
+  coachAvatar: string | null
   startTime: string
   durationMin: number
   maxCapacity: number
@@ -29,13 +31,27 @@ export interface Subscription {
   isExpiringSoon: boolean
 }
 
+export interface Promo {
+  label: string
+  headline: string
+  discountPct: number
+  originalPriceMXN: number
+  priceMXN: number
+  savingsMXN: number
+  endsAt: string | null
+}
+
 export interface Package {
   id: string
   name: string
   description: string | null
   classCount: number | null
   validDays: number
+  /** Precio de lista. */
   priceMXN: number
+  /** Precio que realmente se cobra hoy (promo aplicada, si hay). */
+  finalPriceMXN: number
+  promo: Promo | null
   label: string
 }
 
@@ -111,6 +127,7 @@ export interface Booking {
     id: string
     name: string
     instructor: string
+    coachAvatar: string | null
     startTime: string
     durationMin: number
   }
@@ -158,7 +175,8 @@ export function getTierInfo(tierId: TierId): TierInfo {
 }
 
 // ─── Rewards ──────────────────────────────────────────────────────────────────
-export type RewardType = 'CAFE_FREE'
+export type RewardType   = 'CAFE_FREE' | 'FREE_CLASS'
+export type RewardSource = 'MILESTONE' | 'PROMO_INAUGURACION' | 'ADMIN_GIFT'
 
 export interface Reward {
   id:         string
@@ -167,11 +185,27 @@ export interface Reward {
   isRedeemed: boolean
   redeemedAt: string | null
   createdAt:  string
+  source?:    RewardSource
 }
 
 export interface MyRewardsData {
   totalClassesTaken: number
+  /** Clases de cortesía disponibles para reservar. */
+  bonusClasses:      number
   tier:              TierId
   tierLabel:         string
   rewards:           Reward[]
+}
+
+// ─── Promo de clase gratis (QR de inauguración) ───────────────────────────────
+export interface PromoCampaign {
+  slug:        string
+  headline:    string
+  subhead:     string
+  description: string
+  validDays:   number
+  endsAt:      string | null
+  /** Lugares restantes — null = sin límite. */
+  spotsLeft:   number | null
+  isOpen:      boolean
 }

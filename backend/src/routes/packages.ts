@@ -1,6 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express'
 import { prisma } from '../lib/prisma'
 import { auth } from '../middleware/auth'
+import { promoPayload } from '../lib/promo'
 
 const router = Router()
 
@@ -12,18 +13,25 @@ router.get('/', async (_req: Request, res: Response, next: NextFunction) => {
       orderBy: { priceMXN: 'asc' },
     })
 
-    const data = packages.map((pkg) => ({
+    const data = packages.map((pkg) => {
+      const promo = promoPayload(pkg.priceMXN)
+
+      return {
       id: pkg.id,
       name: pkg.name,
       description: pkg.description ?? null,
       classCount: pkg.classCount,
       validDays: pkg.validDays,
       priceMXN: pkg.priceMXN,
+      /** Lo que realmente se cobra hoy (con promo aplicada, si hay). */
+      finalPriceMXN: promo?.priceMXN ?? pkg.priceMXN,
+      promo,
       label:
         pkg.classCount === null
           ? `Ilimitado · ${pkg.validDays} días`
           : `${pkg.classCount} clases · ${pkg.validDays} días`,
-    }))
+      }
+    })
 
     res.json({ data })
   } catch (err) {
@@ -36,19 +44,28 @@ router.get('/my-subscription', auth, async (req: Request, res: Response, next: N
   try {
     const now = new Date()
 
-    const subscription = await prisma.subscription.findFirst({
-      where: {
-        userId: req.user!.id,
-        isActive: true,
-        expiresAt: { gt: now },
-      },
-      include: {
-        package: { select: { name: true } },
-      },
-    })
+    const [subscription, user] = await Promise.all([
+      prisma.subscription.findFirst({
+        where: {
+          userId: req.user!.id,
+          isActive: true,
+          expiresAt: { gt: now },
+        },
+        include: {
+          package: { select: { name: true } },
+        },
+      }),
+      prisma.user.findUnique({
+        where:  { id: req.user!.id },
+        select: { bonusClasses: true },
+      }),
+    ])
+
+    // Las cortesías se pueden usar aunque no haya paquete activo
+    const bonusClasses = user?.bonusClasses ?? 0
 
     if (!subscription) {
-      return res.json({ subscription: null })
+      return res.json({ subscription: null, bonusClasses })
     }
 
     const daysLeft = Math.ceil(
@@ -56,6 +73,7 @@ router.get('/my-subscription', auth, async (req: Request, res: Response, next: N
     )
 
     return res.json({
+      bonusClasses,
       subscription: {
         id: subscription.id,
         packageId: subscription.packageId,

@@ -1,5 +1,6 @@
 import { prisma } from '../lib/prisma'
 import { sendPushToUser, sendPushToAdmin } from './webpush'
+import { REWARD_SOURCE } from '../lib/promo'
 
 // ─── Tier definitions ─────────────────────────────────────────────────────────
 export type TierId = 'none' | 'plie' | 'arabesque' | 'attitude' | 'prima'
@@ -66,6 +67,45 @@ export async function onClassAttended(userId: string): Promise<void> {
       }).catch(() => null)
     }
   }
+}
+
+// ─── Clases de cortesía ───────────────────────────────────────────────────────
+
+type FreeClassSource = typeof REWARD_SOURCE.campaign | typeof REWARD_SOURCE.gift
+
+/**
+ * Otorga 1 clase de cortesía: suma el crédito y deja un Reward como comprobante
+ * (código único, canjeable/auditable desde el panel). Todo en una transacción.
+ */
+export async function grantFreeClass(userId: string, source: FreeClassSource) {
+  return prisma.$transaction(async (tx) => {
+    const reward = await tx.reward.create({
+      data: { userId, type: 'FREE_CLASS', source },
+      select: { id: true, code: true, createdAt: true },
+    })
+
+    const user = await tx.user.update({
+      where:  { id: userId },
+      data:   { bonusClasses: { increment: 1 } },
+      select: { bonusClasses: true },
+    })
+
+    return { reward, bonusClasses: user.bonusClasses }
+  })
+}
+
+/** ¿Esta cuenta ya reclamó la promo de inauguración? */
+export async function hasClaimedCampaign(userId: string): Promise<boolean> {
+  const existing = await prisma.reward.findFirst({
+    where:  { userId, source: REWARD_SOURCE.campaign },
+    select: { id: true },
+  })
+  return existing !== null
+}
+
+/** Cortesías reclamadas en la campaña (para el cupo). */
+export function countCampaignClaims(): Promise<number> {
+  return prisma.reward.count({ where: { source: REWARD_SOURCE.campaign } })
 }
 
 // ─── Called when a booking is reverted from ATTENDED → CONFIRMED ─────────────

@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react'
-import { ChevronDown, ChevronUp, Pencil, Trash2, Plus, Eye, EyeOff } from 'lucide-react'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { ChevronDown, ChevronUp, Pencil, Trash2, Plus, Eye, EyeOff, Camera } from 'lucide-react'
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { adminApi } from '../../api/admin'
@@ -7,6 +7,8 @@ import { useStore } from '../../store/useStore'
 import { Skeleton } from '../../components/ui/Skeleton'
 import { Button } from '../../components/ui/Button'
 import { BottomSheet } from '../../components/ui/BottomSheet'
+import { CoachAvatar } from '../../components/CoachAvatar'
+import { compressImage } from '../../lib/image'
 import type { AdminCoach, AdminCoachClass, DeleteBlockedError } from '../../types/admin'
 
 const DAY_LABELS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
@@ -116,9 +118,29 @@ function CoachFormSheet({
   const [loading,  setLoading]  = useState(false)
   const [errors,   setErrors]   = useState<Partial<CoachFormData>>({})
 
+  // ── Foto ────────────────────────────────────────────────────────────────
+  const [avatar,          setAvatar]          = useState<string | null>(coach?.avatar ?? null)
+  const [avatarLoading,   setAvatarLoading]   = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const avatarChanged = avatar !== (coach?.avatar ?? null)
+
   function set(key: keyof CoachFormData, value: string) {
     setForm((f) => ({ ...f, [key]: value }))
     setErrors((e) => ({ ...e, [key]: undefined }))
+  }
+
+  async function handlePickPhoto(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    e.target.value = ''
+    setAvatarLoading(true)
+    try {
+      setAvatar(await compressImage(file))
+    } catch {
+      showToast('No se pudo procesar la imagen', 'error')
+    } finally {
+      setAvatarLoading(false)
+    }
   }
 
   function validate(): boolean {
@@ -135,18 +157,23 @@ function CoachFormSheet({
     setLoading(true)
     try {
       if (isNew) {
-        await adminApi.createCoach({
+        const created = await adminApi.createCoach({
           name:     form.name.trim(),
           email:    form.email.trim(),
           phone:    form.phone.trim() || undefined,
           password: form.password,
         })
+        // La foto se guarda en un segundo paso: POST /coaches no la acepta
+        if (avatar) {
+          await adminApi.updateCoach((created.data as { id: string }).id, { avatar })
+        }
         showToast('Coach creada correctamente', 'success')
       } else {
         await adminApi.updateCoach(coach.id, {
           name:  form.name.trim(),
           email: form.email.trim(),
           phone: form.phone.trim() || null,
+          ...(avatarChanged && { avatar }),
         })
         showToast('Datos actualizados', 'success')
       }
@@ -173,6 +200,55 @@ function CoachFormSheet({
       title={isNew ? 'Nueva coach' : `Editar — ${coach.name.split(' ')[0]}`}
     >
       <div className="flex flex-col gap-4">
+        {/* Foto — la ven las alumnas en el horario y en el detalle de la clase */}
+        <div className="flex items-center gap-4">
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={avatarLoading}
+            className="relative tap-target shrink-0"
+            aria-label="Cambiar foto de la coach"
+          >
+            <CoachAvatar
+              name={form.name || '?'}
+              avatar={avatar}
+              size={72}
+              className="ring-1 ring-nude-border"
+            />
+            <span className="absolute bottom-0 right-0 w-6 h-6 bg-noir rounded-full flex items-center justify-center shadow-md border-2 border-white">
+              {avatarLoading
+                ? <span className="w-3 h-3 border-2 border-white/50 border-t-white rounded-full animate-spin" />
+                : <Camera size={11} className="text-white" />
+              }
+            </span>
+          </button>
+
+          <div className="flex flex-col gap-1 min-w-0">
+            <p className="text-label text-noir">Foto de la coach</p>
+            <p className="text-stone text-[11px] leading-snug">
+              Las alumnas la verán al reservar su clase.
+            </p>
+            {avatar && (
+              <button
+                type="button"
+                onClick={() => setAvatar(null)}
+                className="flex items-center gap-1 text-red-500 text-[12px] mt-0.5 self-start"
+              >
+                <Trash2 size={12} />
+                Quitar foto
+              </button>
+            )}
+          </div>
+        </div>
+
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={handlePickPhoto}
+        />
+
         {/* Nombre */}
         <div className="flex flex-col gap-1">
           <label className="text-label text-stone">Nombre completo</label>
@@ -268,11 +344,7 @@ function CoachCard({
         className="flex items-center gap-3 p-4 w-full tap-target text-left"
         onClick={() => setExpanded((v) => !v)}
       >
-        <div className="w-10 h-10 rounded-full bg-nude-light flex items-center justify-center shrink-0">
-          <span className="text-title text-[18px] text-nude-dark font-display">
-            {coach.name.charAt(0).toUpperCase()}
-          </span>
-        </div>
+        <CoachAvatar name={coach.name} avatar={coach.avatar} size={40} />
         <div className="flex-1 min-w-0">
           <p className="text-label font-medium text-noir truncate">{coach.name}</p>
           <p className="text-stone text-xs truncate">{coach.email}</p>
