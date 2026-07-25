@@ -8,6 +8,7 @@ import { createError } from '../middleware/errorHandler'
 import { getTier, grantFreeClass, countCampaignClaims } from '../services/rewards'
 import { FREE_CLASS_CAMPAIGN, isCampaignOpen, REWARD_SOURCE } from '../lib/promo'
 import { sendPushToUser } from '../services/webpush'
+import { internalEmailForPhone, isInternalEmail, normalizePhone } from '../lib/phone'
 import {
   isClassActiveOn,
   parseRangeDate,
@@ -125,6 +126,10 @@ router.get('/students', async (req: Request, res: Response, next: NextFunction) 
     const take = Math.min(parseInt(limit as string) || 20, 100)
     const skip = (Math.max(parseInt(page as string) || 1, 1) - 1) * take
 
+    // Buscar también por teléfono: es el dato con el que el estudio identifica
+    // a las alumnas dadas de alta en el mostrador
+    const searchDigits = typeof search === 'string' ? search.replace(/\D/g, '') : ''
+
     const where = {
       role: { in: ['STUDENT', 'COACH'] as ('STUDENT' | 'COACH')[] },
       ...(search
@@ -132,6 +137,9 @@ router.get('/students', async (req: Request, res: Response, next: NextFunction) 
             OR: [
               { name: { contains: search as string, mode: 'insensitive' as const } },
               { email: { contains: search as string, mode: 'insensitive' as const } },
+              ...(searchDigits.length >= 3
+                ? [{ phoneNormalized: { contains: searchDigits } }]
+                : []),
             ],
           }
         : {}),
@@ -204,6 +212,81 @@ router.get('/students', async (req: Request, res: Response, next: NextFunction) 
     })
   } catch (err) {
     next(err)
+  }
+})
+
+// ─── POST /api/admin/students ─────────────────────────────────────────────────
+// Alta de alumna desde el mostrador: muchas no saben registrarse solas.
+// El correo es opcional — si no lo tiene, entra a la app con su teléfono.
+const createStudentSchema = z.object({
+  name:      z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
+  phone:     z.string().min(10, 'El teléfono debe tener 10 dígitos'),
+  email:     z.string().email('Email inválido').optional(),
+  password:  z.string().min(8, 'La contraseña debe tener al menos 8 caracteres'),
+  gender:    z.enum(['FEMALE', 'MALE', 'OTHER', 'PREFER_NOT_TO_SAY']).optional(),
+  birthDate: z.string().optional(),
+})
+
+router.post('/students', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const body = createStudentSchema.parse(req.body)
+
+    const phoneNormalized = normalizePhone(body.phone)
+    if (!phoneNormalized) {
+      return next(createError(400, 'El teléfono debe tener 10 dígitos'))
+    }
+
+    // Misma regla de edad que el registro público
+    if (body.birthDate) {
+      const birth = new Date(body.birthDate)
+      const today = new Date()
+      let age = today.getFullYear() - birth.getFullYear()
+      const m = today.getMonth() - birth.getMonth()
+      if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--
+      if (age < 16) {
+        return next(createError(400, 'La alumna debe tener al menos 16 años'))
+      }
+    }
+
+    const phoneTaken = await prisma.user.findFirst({
+      where: { phoneNormalized },
+      select: { name: true },
+    })
+    if (phoneTaken) {
+      return next(createError(409, `Ese teléfono ya está registrado con la cuenta de ${phoneTaken.name}`))
+    }
+
+    // Sin correo propio le generamos uno interno: User.email es único y obligatorio
+    const email = body.email?.trim() || internalEmailForPhone(phoneNormalized)
+
+    const emailTaken = await prisma.user.findUnique({ where: { email } })
+    if (emailTaken) {
+      return next(createError(409, 'Ya existe una cuenta con ese email'))
+    }
+
+    const passwordHash = await bcrypt.hash(body.password, 10)
+
+    const student = await prisma.user.create({
+      data: {
+        name:      body.name.trim(),
+        email,
+        phone:     phoneNormalized,
+        phoneNormalized,
+        passwordHash,
+        role:      'STUDENT',
+        gender:    body.gender,
+        birthDate: body.birthDate ? new Date(body.birthDate) : undefined,
+      },
+      select: { id: true, name: true, email: true, phone: true, role: true, createdAt: true },
+    })
+
+    return res.status(201).json({
+      ...student,
+      // El frontend lo usa para decirle a la admin con qué dato entra la alumna
+      hasOwnEmail: !isInternalEmail(student.email),
+    })
+  } catch (err) {
+    return next(err)
   }
 })
 
@@ -368,6 +451,13 @@ router.post('/coaches', async (req: Request, res: Response, next: NextFunction) 
     const existing = await prisma.user.findUnique({ where: { email: body.email } })
     if (existing) return next(createError(409, 'Ya existe un usuario con ese email'))
 
+    // El teléfono sirve para iniciar sesión, así que no puede repetirse
+    const phoneNormalized = normalizePhone(body.phone)
+    if (phoneNormalized) {
+      const phoneTaken = await prisma.user.findFirst({ where: { phoneNormalized } })
+      if (phoneTaken) return next(createError(409, 'Ya existe un usuario con ese teléfono'))
+    }
+
     const passwordHash = await bcrypt.hash(body.password, 10)
 
     const coach = await prisma.user.create({
@@ -375,6 +465,7 @@ router.post('/coaches', async (req: Request, res: Response, next: NextFunction) 
         name: body.name,
         email: body.email,
         phone: body.phone ?? null,
+        phoneNormalized,
         passwordHash,
         role: 'COACH',
       },
@@ -414,12 +505,21 @@ router.patch('/coaches/:id', async (req: Request, res: Response, next: NextFunct
       if (existing) return next(createError(409, 'Ya existe un usuario con ese email'))
     }
 
+    // Validar teléfono único si cambia — con él también se inicia sesión
+    const phoneNormalized = body.phone !== undefined ? normalizePhone(body.phone) : undefined
+    if (phoneNormalized && phoneNormalized !== coach.phoneNormalized) {
+      const phoneTaken = await prisma.user.findFirst({
+        where: { phoneNormalized, id: { not: coachId } },
+      })
+      if (phoneTaken) return next(createError(409, 'Ya existe un usuario con ese teléfono'))
+    }
+
     const updated = await prisma.user.update({
       where: { id: coachId },
       data: {
         ...(body.name   !== undefined && { name: body.name }),
         ...(body.email  !== undefined && { email: body.email }),
-        ...(body.phone  !== undefined && { phone: body.phone }),
+        ...(body.phone  !== undefined && { phone: body.phone, phoneNormalized }),
         ...(body.avatar !== undefined && { avatar: body.avatar }),
       },
       select: { id: true, name: true, email: true, phone: true, role: true, avatar: true, createdAt: true },

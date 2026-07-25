@@ -13,6 +13,8 @@ model User {
   name                String
   email               String         @unique
   phone               String?
+  /// Teléfono en 10 dígitos, sin lada ni formato — permite iniciar sesión con el número
+  phoneNormalized     String?
   passwordHash        String
   role                Role           @default(STUDENT)
   pushToken           String?
@@ -30,6 +32,8 @@ model User {
   healthProfile       HealthProfile?
   coachClasses        Class[]        @relation("CoachClasses")
   rewards             Reward[]
+
+  @@index([phoneNormalized])
 }
 
 model Reward {

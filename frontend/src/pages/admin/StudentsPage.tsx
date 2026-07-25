@@ -1,5 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { Search, ChevronDown, ChevronUp, Trash2, KeyRound, Eye, EyeOff, Gift } from 'lucide-react'
+import {
+  Search, ChevronDown, ChevronUp, Trash2, KeyRound, Eye, EyeOff, Gift,
+  UserPlus, MessageCircle, Copy, Check,
+} from 'lucide-react'
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { adminApi } from '../../api/admin'
@@ -215,6 +218,323 @@ function PasswordResetSheet({
 
         <Button variant="primary" size="lg" loading={loading} onClick={handleSave} className="w-full">
           Guardar contraseña
+        </Button>
+      </div>
+    </BottomSheet>
+  )
+}
+
+// ─── Registrar alumna ─────────────────────────────────────────────────────────
+// Alta desde el mostrador: muchas alumnas no se registran solas. El correo es
+// opcional — si no lo tiene, entra a la app con su teléfono.
+
+const LADA_PAIS = '52' // México
+
+interface NewStudentForm {
+  name:      string
+  phone:     string
+  email:     string
+  password:  string
+  gender:    string
+  birthDate: string
+}
+
+interface CreatedStudent {
+  name:     string
+  phone:    string
+  email:    string
+  password: string
+  /** false = le generamos un correo interno, entra con su teléfono */
+  hasOwnEmail: boolean
+}
+
+function loginIdOf(s: CreatedStudent) {
+  return s.hasOwnEmail ? s.email : s.phone
+}
+
+function welcomeMessage(s: CreatedStudent) {
+  const firstName = s.name.trim().split(' ')[0]
+  return [
+    `¡Hola ${firstName}! Ya te registré en SODI Barre & Coffee 🩰`,
+    '',
+    `Entra aquí: ${window.location.origin}/login`,
+    `Usuario: ${loginIdOf(s)}`,
+    `Contraseña: ${s.password}`,
+    '',
+    'Ahí puedes ver los horarios y apartar tu clase. ¡Nos vemos!',
+  ].join('\n')
+}
+
+const EMPTY_FORM: NewStudentForm = {
+  name: '', phone: '', email: '', password: '', gender: '', birthDate: '',
+}
+
+function NewStudentSheet({ onClose }: { onClose: (didCreate: boolean) => void }) {
+  const showToast = useStore((s) => s.showToast)
+
+  const [form,       setForm]       = useState<NewStudentForm>(EMPTY_FORM)
+  const [errors,     setErrors]     = useState<Partial<Record<keyof NewStudentForm, string>>>({})
+  const [showPwd,    setShowPwd]    = useState(false)
+  const [pwdTouched, setPwdTouched] = useState(false)
+  const [loading,    setLoading]    = useState(false)
+  const [created,    setCreated]    = useState<CreatedStudent | null>(null)
+  const [copied,     setCopied]     = useState(false)
+  const createdAny = useRef(false)
+
+  function set(key: keyof NewStudentForm, value: string) {
+    setForm((f) => ({ ...f, [key]: value }))
+    setErrors((e) => ({ ...e, [key]: undefined }))
+  }
+
+  // Solo dígitos; si pegan el número con lada de país nos quedamos con los últimos 10
+  function setPhone(raw: string) {
+    const digits = raw.replace(/\D/g, '')
+    const phone = digits.length > 10 ? digits.slice(-10) : digits
+    setForm((f) => ({ ...f, phone, ...(pwdTouched ? {} : { password: phone }) }))
+    setErrors((e) => ({ ...e, phone: undefined, password: undefined }))
+  }
+
+  function validate(): boolean {
+    const errs: Partial<Record<keyof NewStudentForm, string>> = {}
+    if (form.name.trim().length < 2)                              errs.name     = 'Escribe su nombre completo'
+    if (form.phone.length !== 10)                                 errs.phone    = 'Deben ser 10 dígitos'
+    if (form.email.trim() && !/\S+@\S+\.\S+/.test(form.email))    errs.email    = 'Correo inválido'
+    if (form.password.length < 8)                                 errs.password = 'Mínimo 8 caracteres'
+    setErrors(errs)
+    return Object.keys(errs).length === 0
+  }
+
+  async function handleSave() {
+    if (!validate()) return
+    setLoading(true)
+    try {
+      const res = await adminApi.createStudent({
+        name:     form.name.trim(),
+        phone:    form.phone,
+        password: form.password,
+        ...(form.email.trim() && { email: form.email.trim() }),
+        ...(form.gender       && { gender: form.gender }),
+        ...(form.birthDate    && { birthDate: form.birthDate }),
+      })
+      const data = res.data as { email: string; hasOwnEmail: boolean }
+      createdAny.current = true
+      setCreated({
+        name:        form.name.trim(),
+        phone:       form.phone,
+        email:       data.email,
+        password:    form.password,
+        hasOwnEmail: data.hasOwnEmail,
+      })
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error
+      showToast(msg ?? 'Error al registrar la alumna', 'error')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  function handleWhatsApp() {
+    if (!created) return
+    const url = `https://wa.me/${LADA_PAIS}${created.phone}?text=${encodeURIComponent(welcomeMessage(created))}`
+    window.open(url, '_blank', 'noopener,noreferrer')
+  }
+
+  async function handleCopy() {
+    if (!created) return
+    try {
+      await navigator.clipboard.writeText(welcomeMessage(created))
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      showToast('No se pudieron copiar los datos', 'error')
+    }
+  }
+
+  function registerAnother() {
+    setForm(EMPTY_FORM)
+    setErrors({})
+    setPwdTouched(false)
+    setCreated(null)
+  }
+
+  const inputCls = 'w-full border border-nude-border rounded-sm px-4 py-3 text-[16px] text-noir bg-white focus:outline-none focus:border-nude placeholder:text-stone'
+  const errorCls = 'text-red-500 text-[11px] mt-0.5'
+  const hintCls  = 'text-stone/70 text-[11px] mt-0.5'
+
+  // ── Listo: entregar los datos a la alumna ─────────────────────────────────
+  if (created) {
+    return (
+      <BottomSheet isOpen={true} onClose={() => onClose(true)} title="Alumna registrada">
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center gap-3 px-4 py-3 bg-nude/10 border border-nude-border rounded-md">
+            <div className="w-9 h-9 rounded-full bg-noir flex items-center justify-center shrink-0">
+              <Check size={16} className="text-white" />
+            </div>
+            <p className="text-label text-noir">
+              {created.name.split(' ')[0]} ya puede entrar a la app
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-2 px-4 py-3 border border-nude-border rounded-md">
+            <div>
+              <p className="text-stone text-xs">Usuario</p>
+              <p className="text-label text-noir break-all">{loginIdOf(created)}</p>
+            </div>
+            <div>
+              <p className="text-stone text-xs">Contraseña</p>
+              <p className="text-label text-noir">{created.password}</p>
+            </div>
+            {created.hasOwnEmail && (
+              <p className={hintCls}>
+                También puede entrar con su teléfono: {created.phone}
+              </p>
+            )}
+          </div>
+
+          <button
+            onClick={handleWhatsApp}
+            className="flex items-center justify-center gap-2 w-full py-3 rounded-sm bg-[#25D366] text-white text-label font-medium transition-opacity active:opacity-80"
+          >
+            <MessageCircle size={16} />
+            Enviarle sus datos por WhatsApp
+          </button>
+
+          <button
+            onClick={handleCopy}
+            className="flex items-center justify-center gap-2 w-full py-3 rounded-sm border border-nude-border text-noir text-label transition-colors hover:border-nude"
+          >
+            {copied ? <Check size={15} /> : <Copy size={15} />}
+            {copied ? 'Datos copiados' : 'Copiar datos'}
+          </button>
+
+          <div className="flex gap-3">
+            <Button variant="ghost" size="lg" onClick={registerAnother} className="flex-1">
+              Registrar otra
+            </Button>
+            <Button variant="primary" size="lg" onClick={() => onClose(true)} className="flex-1">
+              Listo
+            </Button>
+          </div>
+        </div>
+      </BottomSheet>
+    )
+  }
+
+  // ── Formulario ────────────────────────────────────────────────────────────
+  return (
+    <BottomSheet isOpen={true} onClose={() => onClose(createdAny.current)} title="Registrar alumna">
+      <div className="flex flex-col gap-4">
+        {/* Nombre */}
+        <div className="flex flex-col gap-1">
+          <label className="text-label text-stone">Nombre completo</label>
+          <input
+            type="text"
+            value={form.name}
+            onChange={(e) => set('name', e.target.value)}
+            placeholder="Ej: María González"
+            autoComplete="off"
+            className={inputCls}
+          />
+          {errors.name && <p className={errorCls}>{errors.name}</p>}
+        </div>
+
+        {/* Teléfono */}
+        <div className="flex flex-col gap-1">
+          <label className="text-label text-stone">Teléfono</label>
+          <input
+            type="tel"
+            inputMode="numeric"
+            value={form.phone}
+            onChange={(e) => setPhone(e.target.value)}
+            placeholder="6641234567"
+            autoComplete="off"
+            className={inputCls}
+          />
+          {errors.phone
+            ? <p className={errorCls}>{errors.phone}</p>
+            : <p className={hintCls}>10 dígitos. Con este número entra a la app y le mandas sus datos.</p>
+          }
+        </div>
+
+        {/* Correo — opcional */}
+        <div className="flex flex-col gap-1">
+          <label className="text-label text-stone">Correo (opcional)</label>
+          <input
+            type="email"
+            value={form.email}
+            onChange={(e) => set('email', e.target.value)}
+            placeholder="maria@correo.com"
+            autoComplete="off"
+            autoCapitalize="none"
+            className={inputCls}
+          />
+          {errors.email
+            ? <p className={errorCls}>{errors.email}</p>
+            : <p className={hintCls}>Si no tiene o no lo recuerda, déjalo vacío.</p>
+          }
+        </div>
+
+        {/* Contraseña */}
+        <div className="flex flex-col gap-1">
+          <label className="text-label text-stone">Contraseña</label>
+          <div className="relative">
+            <input
+              type={showPwd ? 'text' : 'password'}
+              value={form.password}
+              onChange={(e) => { setPwdTouched(true); set('password', e.target.value) }}
+              placeholder="Mínimo 8 caracteres"
+              autoComplete="new-password"
+              className={inputCls + ' pr-11'}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPwd((v) => !v)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-stone"
+              aria-label={showPwd ? 'Ocultar contraseña' : 'Ver contraseña'}
+            >
+              {showPwd ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
+          </div>
+          {errors.password
+            ? <p className={errorCls}>{errors.password}</p>
+            : <p className={hintCls}>Se llena sola con su teléfono para que la recuerde. Puedes cambiarla.</p>
+          }
+        </div>
+
+        {/* Género */}
+        <div className="flex flex-col gap-1">
+          <label className="text-label text-stone">Género (opcional)</label>
+          <select
+            value={form.gender}
+            onChange={(e) => set('gender', e.target.value)}
+            className={inputCls + ' appearance-none' + (form.gender ? '' : ' text-stone')}
+          >
+            <option value="">Sin especificar</option>
+            <option value="FEMALE">Femenino</option>
+            <option value="MALE">Masculino</option>
+            <option value="OTHER">Otro</option>
+            <option value="PREFER_NOT_TO_SAY">Prefiere no decir</option>
+          </select>
+        </div>
+
+        {/* Cumpleaños */}
+        <div className="flex flex-col gap-1">
+          <label className="text-label text-stone">Cumpleaños (opcional)</label>
+          <input
+            type="date"
+            value={form.birthDate}
+            onChange={(e) => set('birthDate', e.target.value)}
+            max={new Date().toISOString().split('T')[0]}
+            className={inputCls + ' appearance-none' + (form.birthDate ? '' : ' text-stone')}
+          />
+          {errors.birthDate
+            ? <p className={errorCls}>{errors.birthDate}</p>
+            : <p className={hintCls}>Debe tener mínimo 16 años.</p>
+          }
+        </div>
+
+        <Button variant="primary" size="lg" loading={loading} onClick={handleSave} className="w-full">
+          Registrar alumna
         </Button>
       </div>
     </BottomSheet>
@@ -556,6 +876,7 @@ export default function AdminStudentsPage() {
   const [editStudent,    setEditStudent]    = useState<AdminStudent | null>(null)
   const [deleteTarget,   setDeleteTarget]   = useState<AdminStudent | null>(null)
   const [passwordTarget, setPasswordTarget] = useState<AdminStudent | null>(null)
+  const [showNewStudent, setShowNewStudent] = useState(false)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const fetchStudents = useCallback(async (q: string) => {
@@ -591,9 +912,18 @@ export default function AdminStudentsPage() {
 
   return (
     <div className="min-h-screen bg-off-white pb-8 page-enter">
-      <header className="px-4 pt-8 pb-4">
-        <p className="text-section text-stone text-[11px]">ALUMNAS</p>
-        <h1 className="text-hero text-noir mt-0.5">Estudiantes</h1>
+      <header className="px-4 pt-8 pb-4 flex items-end justify-between gap-3">
+        <div>
+          <p className="text-section text-stone text-[11px]">ALUMNAS</p>
+          <h1 className="text-hero text-noir mt-0.5">Estudiantes</h1>
+        </div>
+        <button
+          onClick={() => setShowNewStudent(true)}
+          className="flex items-center gap-1.5 shrink-0 px-3 py-2 rounded-sm bg-noir text-white text-label text-[13px] tap-target transition-opacity active:opacity-80"
+        >
+          <UserPlus size={15} />
+          Registrar
+        </button>
       </header>
 
       {/* Search */}
@@ -601,7 +931,7 @@ export default function AdminStudentsPage() {
         <Search size={16} className="absolute left-7 top-1/2 -translate-y-1/2 text-stone pointer-events-none" />
         <input
           type="search"
-          placeholder="Buscar por nombre o email..."
+          placeholder="Buscar por nombre, correo o teléfono..."
           value={search}
           onChange={(e) => handleSearch(e.target.value)}
           className="w-full border border-nude-border rounded-sm pl-9 pr-4 py-3 text-label text-noir bg-white placeholder:text-stone focus:outline-none focus:border-nude"
@@ -614,9 +944,16 @@ export default function AdminStudentsPage() {
           {[1, 2, 3, 4, 5].map((i) => <Skeleton key={i} className="h-16 rounded-md" />)}
         </div>
       ) : students.length === 0 ? (
-        <p className="text-label text-stone px-4">
-          {search ? 'Sin resultados para tu búsqueda' : 'No hay alumnas registradas'}
-        </p>
+        <div className="px-4 flex flex-col items-start gap-3">
+          <p className="text-label text-stone">
+            {search ? 'Sin resultados para tu búsqueda' : 'No hay alumnas registradas'}
+          </p>
+          {!search && (
+            <Button variant="ghost" size="sm" onClick={() => setShowNewStudent(true)}>
+              + Registrar la primera
+            </Button>
+          )}
+        </div>
       ) : (
         <div>
           {students.map((s) => (
@@ -631,6 +968,15 @@ export default function AdminStudentsPage() {
             />
           ))}
         </div>
+      )}
+
+      {showNewStudent && (
+        <NewStudentSheet
+          onClose={(didCreate) => {
+            setShowNewStudent(false)
+            if (didCreate) fetchStudents(search)
+          }}
+        />
       )}
 
       {editStudent && (

@@ -2,9 +2,11 @@ import { Router, Request, Response, NextFunction } from 'express'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import { z } from 'zod'
+import type { User } from '@prisma/client'
 import { prisma } from '../lib/prisma'
 import { auth } from '../middleware/auth'
 import { createError } from '../middleware/errorHandler'
+import { looksLikeEmail, normalizePhone } from '../lib/phone'
 
 const router = Router()
 
@@ -63,6 +65,15 @@ router.post('/register', async (req: Request, res: Response, next: NextFunction)
       return next(createError(409, 'Ya existe una cuenta con ese email'))
     }
 
+    // El teléfono también sirve para iniciar sesión, así que no puede repetirse
+    const phoneNormalized = normalizePhone(body.phone)
+    if (phoneNormalized) {
+      const phoneTaken = await prisma.user.findFirst({ where: { phoneNormalized } })
+      if (phoneTaken) {
+        return next(createError(409, 'Ya existe una cuenta con ese teléfono'))
+      }
+    }
+
     const passwordHash = await bcrypt.hash(body.password, 12)
 
     const user = await prisma.user.create({
@@ -70,6 +81,7 @@ router.post('/register', async (req: Request, res: Response, next: NextFunction)
         name:         body.name,
         email:        body.email,
         phone:        body.phone,
+        phoneNormalized,
         passwordHash,
         role:         'STUDENT',
         gender:       body.gender,
@@ -96,18 +108,45 @@ router.post('/register', async (req: Request, res: Response, next: NextFunction)
 })
 
 // ─── POST /api/auth/login ─────────────────────────────────────────────────────
+// `email` acepta correo o teléfono: las alumnas registradas por el estudio
+// entran con su número.
 const loginSchema = z.object({
-  email: z.string().email('Email inválido'),
+  email: z.string().min(1, 'Escribe tu correo o teléfono'),
   password: z.string().min(1, 'Contraseña requerida'),
 })
 
 router.post('/login', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const body = loginSchema.parse(req.body)
+    const identifier = body.email.trim()
 
-    const user = await prisma.user.findUnique({ where: { email: body.email } })
-    if (!user) {
-      return next(createError(404, 'No existe una cuenta con ese email'))
+    let user: User | null = null
+
+    if (looksLikeEmail(identifier)) {
+      user = await prisma.user.findUnique({ where: { email: identifier } })
+      // Los teclados del celular suelen poner mayúscula en la primera letra
+      if (!user) {
+        user = await prisma.user.findFirst({
+          where: { email: { equals: identifier, mode: 'insensitive' } },
+        })
+      }
+      if (!user) {
+        return next(createError(404, 'No existe una cuenta con ese email'))
+      }
+    } else {
+      const phoneNormalized = normalizePhone(identifier)
+      if (!phoneNormalized) {
+        return next(createError(404, 'Escribe tu correo o los 10 dígitos de tu teléfono'))
+      }
+      // Puede haber teléfonos repetidos de antes de que el número sirviera para entrar
+      const matches = await prisma.user.findMany({ where: { phoneNormalized }, take: 2 })
+      if (matches.length === 0) {
+        return next(createError(404, 'No existe una cuenta con ese teléfono'))
+      }
+      if (matches.length > 1) {
+        return next(createError(409, 'Hay más de una cuenta con ese teléfono. Inicia sesión con tu correo.'))
+      }
+      user = matches[0]!
     }
 
     const valid = await bcrypt.compare(body.password, user.passwordHash)

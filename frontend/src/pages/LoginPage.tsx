@@ -19,7 +19,7 @@ export default function LoginPage() {
   const setAuth = useStore((s) => s.setAuth)
   const showToast = useStore((s) => s.showToast)
 
-  const [email, setEmail] = useState('')
+  const [identifier, setIdentifier] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -28,7 +28,7 @@ export default function LoginPage() {
     setLoading(true)
 
     try {
-      const res = await authApi.login({ email, password })
+      const res = await authApi.login({ email: identifier.trim(), password })
       const { user, accessToken } = res.data as { user: User; accessToken: string }
       setAuth(user, accessToken)
       const home = user.role === 'ADMIN' ? '/admin/dashboard' : user.role === 'COACH' ? '/coach/dashboard' : '/schedule'
@@ -72,12 +72,15 @@ export default function LoginPage() {
         <div className="liquid-glass-strong w-full rounded-2xl px-6 py-7">
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <Input
-              label="Correo electrónico"
-              type="email"
-              placeholder="tu@correo.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              autoComplete="email"
+              label="Correo o teléfono"
+              type="text"
+              inputMode="email"
+              placeholder="tu@correo.com o 664 123 4567"
+              value={identifier}
+              onChange={(e) => setIdentifier(e.target.value)}
+              autoComplete="username"
+              autoCapitalize="none"
+              spellCheck={false}
               required
             />
 

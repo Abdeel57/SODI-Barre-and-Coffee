@@ -38,6 +38,14 @@ export const adminApi = {
   // Alumnas
   getStudents: (params?: { search?: string; page?: number; limit?: number }) =>
     api.get('/api/admin/students', { params }),
+  createStudent: (data: {
+    name: string
+    phone: string
+    email?: string
+    password: string
+    gender?: string
+    birthDate?: string
+  }) => api.post('/api/admin/students', data),
   updateSubscription: (
     id: string,
     data: { packageId?: string; classesLeft?: number | null; expiresAt?: string; isActive?: boolean },
