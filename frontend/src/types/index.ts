@@ -10,7 +10,27 @@ export interface ClassSlot {
   availableSpots: number
   isBooked: boolean
   bookingId: string | null
+  /** La alumna tiene horario fijo en esta clase — su lugar queda apartado cada semana. */
+  isRecurring: boolean
+  recurringId: string | null
   date: string
+}
+
+/** Horario fijo: "esta clase todos los miércoles". */
+export interface RecurringSchedule {
+  id: string
+  classId: string
+  name: string
+  instructor: string
+  coachAvatar: string | null
+  dayOfWeek: number
+  dayLabel: string
+  startTime: string
+  durationMin: number
+  endDate: string | null
+  createdAt: string
+  /** Próximas fechas apartadas ("YYYY-MM-DD"). */
+  nextDates: string[]
 }
 
 export interface WeekDay {

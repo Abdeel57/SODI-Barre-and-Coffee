@@ -1,10 +1,12 @@
-import { MapPin, Clock, Users, Gift } from 'lucide-react'
+import { MapPin, Clock, Users, Gift, Repeat } from 'lucide-react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { BottomSheet } from './ui/BottomSheet'
 import { Button } from './ui/Button'
 import { CoachAvatar } from './CoachAvatar'
 import type { ClassSlot, Subscription } from '../types'
+
+const DAY_NAMES = ['domingos', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábados']
 
 interface ClassDetailSheetProps {
   slot: ClassSlot | null
@@ -13,8 +15,10 @@ interface ClassDetailSheetProps {
   bonusClasses?: number
   bookingLoading: boolean
   cancelLoadingId: string | null
+  recurringLoading?: boolean
   onBook: (slot: ClassSlot) => void
   onCancel: (bookingId: string) => void
+  onToggleRecurring?: (slot: ClassSlot) => void
   onClose: () => void
 }
 
@@ -31,8 +35,10 @@ export function ClassDetailSheet({
   bonusClasses = 0,
   bookingLoading,
   cancelLoadingId,
+  recurringLoading = false,
   onBook,
   onCancel,
+  onToggleRecurring,
   onClose,
 }: ClassDetailSheetProps) {
   if (!slot) return null
@@ -44,14 +50,18 @@ export function ClassDetailSheet({
   const isFull = slot.availableSpots === 0 && !slot.isBooked
   const isCancelLoading = cancelLoadingId === slot.bookingId
 
+  // `slot.date` llega como ISO completo desde /classes/week; se admite "YYYY-MM-DD" por si acaso
+  const slotDate = new Date(slot.date.includes('T') ? slot.date : `${slot.date}T00:00:00`)
+
   const dateLabel = (() => {
     try {
-      const d = new Date(slot.date + 'T00:00:00')
-      return format(d, "EEEE d 'de' MMMM", { locale: es })
+      return format(slotDate, "EEEE d 'de' MMMM", { locale: es })
     } catch {
       return slot.date
     }
   })()
+
+  const dayName = DAY_NAMES[slotDate.getDay()] ?? 'semana'
 
   const endMinutes =
     slot.startTime
@@ -192,6 +202,66 @@ export function ClassDetailSheet({
           </Button>
         )}
       </div>
+
+      {/* Horario fijo — el lugar queda apartado cada semana */}
+      {onToggleRecurring && (
+        <div
+          className={`mt-4 mb-2 rounded-lg px-4 py-3.5 border ${
+            slot.isRecurring ? 'border-noir bg-noir' : 'border-nude-border bg-nude-light/40'
+          }`}
+        >
+          <div className="flex items-start gap-3">
+            <div
+              className={`w-8 h-8 rounded-md flex items-center justify-center shrink-0 ${
+                slot.isRecurring ? 'bg-white/10' : 'bg-white'
+              }`}
+            >
+              <Repeat
+                size={15}
+                strokeWidth={1.5}
+                className={slot.isRecurring ? 'text-nude' : 'text-nude-dark'}
+              />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className={`text-label ${slot.isRecurring ? 'text-white' : 'text-noir'}`}>
+                {slot.isRecurring ? 'Tienes horario fijo' : 'Horario fijo'}
+              </p>
+              <p
+                className={`text-[11px] leading-relaxed mt-0.5 ${
+                  slot.isRecurring ? 'text-white/60' : 'text-stone'
+                }`}
+              >
+                {slot.isRecurring
+                  ? `Tu lugar de los ${dayName} a las ${formatTime(slot.startTime)} queda apartado y se reserva solo cada semana.`
+                  : `Aparta este lugar todos los ${dayName} a las ${formatTime(slot.startTime)}. Se reserva solo, semana con semana, descontando una clase de tu paquete cada vez.`}
+              </p>
+            </div>
+          </div>
+
+          {slot.isRecurring ? (
+            // Botón propio: sobre el fondo noir las variantes de Button no dan contraste
+            <button
+              type="button"
+              disabled={recurringLoading}
+              onClick={() => onToggleRecurring(slot)}
+              className="tap-target w-full mt-3 px-3 py-1.5 text-xs rounded-sm border border-white/20 text-white/80 transition-all duration-200 active:scale-[0.97] disabled:opacity-40"
+            >
+              {recurringLoading ? 'Cancelando…' : 'Cancelar horario fijo'}
+            </button>
+          ) : (
+            <Button
+              variant="secondary"
+              size="sm"
+              loading={recurringLoading}
+              disabled={!canBook}
+              onClick={() => onToggleRecurring(slot)}
+              className="w-full mt-3"
+            >
+              {canBook ? `Apartar todos los ${dayName}` : 'Necesitas un paquete activo'}
+            </Button>
+          )}
+        </div>
+      )}
     </BottomSheet>
   )
 }

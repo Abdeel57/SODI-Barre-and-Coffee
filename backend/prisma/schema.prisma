@@ -32,6 +32,7 @@ model User {
   healthProfile       HealthProfile?
   coachClasses        Class[]        @relation("CoachClasses")
   rewards             Reward[]
+  recurringBookings   RecurringBooking[]
 
   @@index([phoneNormalized])
 }
@@ -82,21 +83,50 @@ model Class {
   coachId     String?
   bookings    Booking[]
   coach       User?     @relation("CoachClasses", fields: [coachId], references: [id], onDelete: SetNull)
+  recurring   RecurringBooking[]
 }
 
 model Booking {
-  id        String        @id @default(cuid())
-  userId    String
-  classId   String
-  date      DateTime
-  status    BookingStatus @default(CONFIRMED)
-  createdAt DateTime      @default(now())
+  id          String            @id @default(cuid())
+  userId      String
+  classId     String
+  date        DateTime
+  status      BookingStatus     @default(CONFIRMED)
+  createdAt   DateTime          @default(now())
   /// true = se pagó con una clase de cortesía, no con el paquete
-  usedBonus Boolean       @default(false)
-  user      User          @relation(fields: [userId], references: [id])
-  class     Class         @relation(fields: [classId], references: [id])
+  usedBonus   Boolean           @default(false)
+  /// Regla de horario fijo que generó esta reserva (null = reserva manual)
+  recurringId String?
+  user        User              @relation(fields: [userId], references: [id])
+  class       Class             @relation(fields: [classId], references: [id])
+  recurring   RecurringBooking? @relation(fields: [recurringId], references: [id], onDelete: SetNull)
 
   @@unique([userId, classId, date])
+  @@index([recurringId])
+}
+
+/// Horario fijo: "quiero esta clase todos los miércoles".
+/// No reserva sola — aparta el lugar y un cron va creando los Booking
+/// de las próximas semanas (ver services/recurring.ts).
+model RecurringBooking {
+  id              String    @id @default(cuid())
+  userId          String
+  classId         String
+  isActive        Boolean   @default(true)
+  /// Primera fecha en la que aplica (medianoche local, igual que Booking.date)
+  startDate       DateTime
+  /// Última fecha inclusive — null = indefinido
+  endDate         DateTime?
+  /// Fecha de la ocurrencia del último aviso de fallo, para no repetir el push
+  lastNotifiedFor DateTime?
+  createdAt       DateTime  @default(now())
+  cancelledAt     DateTime?
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  class           Class     @relation(fields: [classId], references: [id], onDelete: Cascade)
+  bookings        Booking[]
+
+  @@unique([userId, classId])
+  @@index([classId, isActive])
 }
 
 model Package {

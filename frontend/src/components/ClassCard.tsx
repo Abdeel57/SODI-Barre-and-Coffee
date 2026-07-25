@@ -1,5 +1,6 @@
 import { memo } from 'react'
 import { clsx } from 'clsx'
+import { Repeat } from 'lucide-react'
 import { Button } from './ui/Button'
 import { Badge } from './ui/Badge'
 import { CoachAvatar } from './CoachAvatar'
@@ -57,7 +58,15 @@ export const ClassCard = memo(function ClassCard({
       <div className="flex items-start justify-between gap-3">
         {/* Info */}
         <div className="flex-1 min-w-0">
-          <p className="text-label text-stone mb-0.5">{formatTime(slot.startTime)}</p>
+          <p className="text-label text-stone mb-0.5 flex items-center gap-1.5">
+            {formatTime(slot.startTime)}
+            {slot.isRecurring && (
+              <span className="inline-flex items-center gap-1 text-[10px] text-nude-dark">
+                <Repeat size={11} strokeWidth={1.8} />
+                Fijo
+              </span>
+            )}
+          </p>
           <h3 className="text-title text-[20px] text-noir leading-tight truncate">
             {slot.name}
           </h3>

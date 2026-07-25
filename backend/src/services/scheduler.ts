@@ -1,6 +1,7 @@
 import cron from 'node-cron'
 import { prisma } from '../lib/prisma'
 import { sendPushToUser } from './webpush'
+import { runRecurringBookings } from './recurring'
 
 export function startScheduler(): void {
   // ─── Job 1: Recordatorios de clase cada 30 min ──────────────────────────────
@@ -102,5 +103,20 @@ export function startScheduler(): void {
     }
   })
 
-  console.log('⏱️  Scheduler iniciado (recordatorios cada 30min, vencimientos 8:00 AM)')
+  // ─── Job 3: Horarios fijos, diario a las 5:00 AM ──────────────────────────
+  // Empuja el horizonte de reservas de las alumnas con horario fijo.
+  cron.schedule('0 5 * * *', async () => {
+    try {
+      const { created, notified } = await runRecurringBookings()
+      if (created > 0 || notified > 0) {
+        console.log(`[scheduler] 📌 Horarios fijos: ${created} reservas creadas, ${notified} avisos`)
+      }
+    } catch (err) {
+      console.error('[scheduler] ❌ Error en job de horarios fijos:', err)
+    }
+  })
+
+  console.log(
+    '⏱️  Scheduler iniciado (recordatorios cada 30min, vencimientos 8:00 AM, horarios fijos 5:00 AM)',
+  )
 }

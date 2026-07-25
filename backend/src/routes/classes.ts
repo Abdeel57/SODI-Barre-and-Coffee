@@ -3,6 +3,7 @@ import { prisma } from '../lib/prisma'
 import { auth } from '../middleware/auth'
 import { isClassActiveOn, toLocalDateString } from '../lib/classDates'
 import { getCoachAvatarsByName, resolveCoachAvatar } from '../lib/coachAvatar'
+import { buildHeldSeatIndex } from '../lib/recurringSeats'
 
 const router = Router()
 
@@ -54,23 +55,26 @@ router.get('/week', auth, async (req: Request, res: Response, next: NextFunction
     const weekEnd = new Date(weekDays[6])
     weekEnd.setHours(23, 59, 59, 999)
 
-    const userBookings = await prisma.booking.findMany({
-      where: {
-        userId,
-        date: { gte: weekStart, lte: weekEnd },
-        status: 'CONFIRMED',
-      },
-    })
-
-    // Obtener conteo de bookings confirmados por clase+fecha en la semana
-    const allConfirmedBookings = await prisma.booking.groupBy({
-      by: ['classId', 'date'],
-      where: {
-        date: { gte: weekStart, lte: weekEnd },
-        status: 'CONFIRMED',
-      },
-      _count: { id: true },
-    })
+    const [userBookings, allConfirmedBookings, heldSeatIndex] = await Promise.all([
+      prisma.booking.findMany({
+        where: {
+          userId,
+          date: { gte: weekStart, lte: weekEnd },
+          status: 'CONFIRMED',
+        },
+      }),
+      // Conteo de bookings confirmados por clase+fecha en la semana
+      prisma.booking.groupBy({
+        by: ['classId', 'date'],
+        where: {
+          date: { gte: weekStart, lte: weekEnd },
+          status: 'CONFIRMED',
+        },
+        _count: { id: true },
+      }),
+      // Lugares apartados por horarios fijos que aún no tienen reserva creada
+      buildHeldSeatIndex({ from: weekStart, to: weekEnd, viewerId: userId }),
+    ])
 
     const confirmedCountMap = new Map<string, number>()
     for (const b of allConfirmedBookings) {
@@ -94,6 +98,8 @@ router.get('/week', auth, async (req: Request, res: Response, next: NextFunction
           const mapKey = `${c.id}::${dateStr}`
           const confirmedCount = confirmedCountMap.get(mapKey) ?? 0
           const bookingId = userBookingMap.get(mapKey) ?? null
+          const heldSeats = heldSeatIndex.heldSeats(c.id, dateStr)
+          const recurringId = heldSeatIndex.recurringIdFor(c.id, dateStr)
 
           // Construir datetime de la clase para este día
           const [h, m] = c.startTime.split(':').map(Number)
@@ -108,9 +114,12 @@ router.get('/week', auth, async (req: Request, res: Response, next: NextFunction
             startTime: c.startTime,
             durationMin: c.durationMin,
             maxCapacity: c.maxCapacity,
-            availableSpots: Math.max(0, c.maxCapacity - confirmedCount),
+            availableSpots: Math.max(0, c.maxCapacity - confirmedCount - heldSeats),
             isBooked: bookingId !== null,
             bookingId,
+            /** La alumna tiene horario fijo en esta clase: su lugar está apartado. */
+            isRecurring: recurringId !== null,
+            recurringId,
             date: classDateTime.toISOString(),
           }
         })

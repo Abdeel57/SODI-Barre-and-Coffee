@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from 'react'
-import { classesApi, bookingsApi, packagesApi } from '../api'
+import { classesApi, bookingsApi, packagesApi, recurringApi } from '../api'
 import { useStore } from '../store/useStore'
 import type { WeekDay, ClassSlot, Subscription } from '../types'
 
@@ -24,6 +24,7 @@ export function useSchedule() {
   const [bookingSlot, setBookingSlot] = useState<ClassSlot | null>(null)
   const [bookingLoading, setBookingLoading] = useState(false)
   const [cancelLoadingId, setCancelLoadingId] = useState<string | null>(null)
+  const [recurringLoading, setRecurringLoading] = useState(false)
   const prefetchRef = useRef<string | null>(null)
 
   const fetchWeek = useCallback(
@@ -97,14 +98,56 @@ export function useSchedule() {
     [showToast, fetchWeek],
   )
 
+  /**
+   * Activa o cancela el horario fijo de una clase.
+   * Al activarlo se apartan de inmediato las próximas semanas; al cancelarlo se
+   * liberan las reservas futuras y se devuelven las clases que apliquen.
+   */
+  const toggleRecurring = useCallback(
+    async (slot: ClassSlot, date: Date) => {
+      setRecurringLoading(true)
+      try {
+        if (slot.isRecurring && slot.recurringId) {
+          const { data } = await recurringApi.remove(slot.recurringId)
+          const cancelled = (data?.cancelled as number) ?? 0
+          showToast(
+            cancelled > 0
+              ? `Horario fijo cancelado · ${cancelled} reserva${cancelled > 1 ? 's' : ''} liberada${cancelled > 1 ? 's' : ''}`
+              : 'Horario fijo cancelado',
+            'info',
+          )
+        } else {
+          const { data } = await recurringApi.create(slot.classId)
+          const created = (data?.created as number) ?? 0
+          showToast(
+            created > 0
+              ? `¡Listo! Apartamos tus próximas ${created} clase${created > 1 ? 's' : ''}`
+              : 'Horario fijo activado',
+            'success',
+          )
+        }
+        setBookingSlot(null)
+        fetchWeek(date, true)
+      } catch (err: unknown) {
+        const e = err as { response?: { data?: { error?: string } } }
+        showToast(e.response?.data?.error ?? 'Error al actualizar tu horario fijo', 'error')
+      } finally {
+        setRecurringLoading(false)
+      }
+    },
+    [showToast, fetchWeek],
+  )
+
   return {
     ...state,
     bookingSlot,
     setBookingSlot,
     bookingLoading,
     cancelLoadingId,
+    recurringLoading,
     fetchWeek,
     book,
     cancel,
+    toggleRecurring,
   }
 }

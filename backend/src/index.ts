@@ -16,6 +16,7 @@ import profileRoutes from './routes/profile'
 import coachRoutes from './routes/coach'
 import rewardsRoutes from './routes/rewards'
 import promoRoutes from './routes/promo'
+import recurringRoutes from './routes/recurring'
 import { errorHandler } from './middleware/errorHandler'
 import { startScheduler } from './services/scheduler'
 
@@ -54,6 +55,7 @@ app.use('/api/profile', profileRoutes)
 app.use('/api/coach', coachRoutes)
 app.use('/api/rewards', rewardsRoutes)
 app.use('/api/promo', promoRoutes)
+app.use('/api/recurring', recurringRoutes)
 
 // ─── Error handler global (debe ir al final) ──────────────────────────────────
 app.use(errorHandler)

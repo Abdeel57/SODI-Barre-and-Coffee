@@ -86,6 +86,7 @@ api.interceptors.response.use(
 
 // ── Typed API functions ───────────────────────────────────────────────────────
 export interface LoginData {
+  /** Correo o teléfono: las alumnas dadas de alta en el estudio entran con su número. */
   email: string
   password: string
 }
@@ -128,6 +129,12 @@ export const bookingsApi = {
   cancel: (id: string) => api.delete(`/api/bookings/${id}`),
   myBookings: (params?: { status?: string; limit?: number; page?: number }) =>
     api.get('/api/bookings/me', { params }),
+}
+
+export const recurringApi = {
+  list:   ()               => api.get('/api/recurring'),
+  create: (classId: string) => api.post('/api/recurring', { classId }),
+  remove: (id: string)      => api.delete(`/api/recurring/${id}`),
 }
 
 export const packagesApi = {

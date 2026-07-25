@@ -1,11 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Bell, LogOut, Package, Calendar, Heart, KeyRound, ChevronRight, ChevronDown, Smartphone, Coffee, Camera, Trash2, Gift } from 'lucide-react'
+import { Bell, LogOut, Package, Calendar, Heart, KeyRound, ChevronRight, ChevronDown, Smartphone, Coffee, Camera, Trash2, Gift, Repeat } from 'lucide-react'
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { clsx } from 'clsx'
 import { QRCodeSVG } from 'qrcode.react'
-import { authApi, packagesApi, paymentsApi, pushApi, profileApi, rewardsApi } from '../api'
+import { authApi, packagesApi, paymentsApi, pushApi, profileApi, rewardsApi, recurringApi } from '../api'
 import { useStore } from '../store/useStore'
 import { usePush } from '../hooks/usePush'
 import { Skeleton } from '../components/ui/Skeleton'
@@ -15,12 +15,18 @@ import { BottomSheet } from '../components/ui/BottomSheet'
 import { TierFrame } from '../components/TierFrame'
 import { TierBadge } from '../components/TierBadge'
 import { compressImage } from '../lib/image'
-import type { Subscription, PaymentHistory, HealthProfile, MyRewardsData, TierId } from '../types'
+import type { Subscription, PaymentHistory, HealthProfile, MyRewardsData, TierId, RecurringSchedule } from '../types'
 import { TIERS, TIER_ICONS, getTierInfo } from '../types'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function formatMXN(amount: number) {
   return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(amount)
+}
+
+function formatTime12(time: string) {
+  const [h, m] = time.split(':').map(Number)
+  const period = h >= 12 ? 'PM' : 'AM'
+  return `${h % 12 || 12}:${m.toString().padStart(2, '0')} ${period}`
 }
 
 // ─── Toggle switch ────────────────────────────────────────────────────────────
@@ -87,6 +93,8 @@ export default function ProfilePage() {
   const { permission, requestPermission, sendTestPush } = usePush()
 
   const [subscription, setSubscription] = useState<Subscription | null>(null)
+  const [recurring,    setRecurring]    = useState<RecurringSchedule[]>([])
+  const [recurringBusyId, setRecurringBusyId] = useState<string | null>(null)
   const [payments,     setPayments]     = useState<PaymentHistory[]>([])
   const [health,       setHealth]       = useState<HealthProfile | null>(null)
   const [rewards,      setRewards]      = useState<MyRewardsData | null>(null)
@@ -128,14 +136,16 @@ export default function ProfilePage() {
   // ── Load data ─────────────────────────────────────────────────────────────
   const fetchData = useCallback(async () => {
     try {
-      const [subRes, payRes, healthRes, rewardsRes] = await Promise.all([
+      const [subRes, payRes, healthRes, rewardsRes, recurringRes] = await Promise.all([
         packagesApi.mySubscription().catch(() => null),
         paymentsApi.history().catch(() => null),
         profileApi.getHealth().catch(() => null),
         rewardsApi.mine().catch(() => null),
+        recurringApi.list().catch(() => null),
       ])
       setSubscription((subRes?.data?.subscription as Subscription) ?? null)
       setPayments(((payRes?.data?.data as PaymentHistory[]) ?? []).slice(0, 3))
+      setRecurring((recurringRes?.data?.data as RecurringSchedule[]) ?? [])
       if (rewardsRes?.data) setRewards(rewardsRes.data as MyRewardsData)
 
       const h = healthRes?.data as HealthProfile | null
@@ -200,6 +210,27 @@ export default function ProfilePage() {
       setPwdError(msg ?? 'Error al actualizar la contraseña')
     } finally {
       setPwdSaving(false)
+    }
+  }
+
+  // ── Horario fijo ──────────────────────────────────────────────────────────
+  async function handleCancelRecurring(rule: RecurringSchedule) {
+    setRecurringBusyId(rule.id)
+    try {
+      const { data } = await recurringApi.remove(rule.id)
+      const cancelled = (data?.cancelled as number) ?? 0
+      setRecurring((rules) => rules.filter((r) => r.id !== rule.id))
+      showToast(
+        cancelled > 0
+          ? `Horario fijo cancelado · ${cancelled} reserva${cancelled > 1 ? 's' : ''} liberada${cancelled > 1 ? 's' : ''}`
+          : 'Horario fijo cancelado',
+        'info',
+      )
+      fetchData()
+    } catch {
+      showToast('Error al cancelar el horario fijo', 'error')
+    } finally {
+      setRecurringBusyId(null)
     }
   }
 
@@ -410,6 +441,59 @@ export default function ProfilePage() {
           </div>
         )}
       </div>
+
+      {/* ── Horarios fijos ─────────────────────────────────────────────── */}
+      {!loading && recurring.length > 0 && (
+        <div className="mt-6">
+          <p className="text-section text-stone text-[10px] uppercase tracking-widest px-6 mb-3">
+            MIS HORARIOS FIJOS
+          </p>
+          <div className="mx-4 flex flex-col gap-2">
+            {recurring.map((rule) => (
+              <div
+                key={rule.id}
+                className="bg-white border border-nude-border rounded-lg px-4 py-3.5 flex items-center gap-3"
+              >
+                <div className="w-8 h-8 rounded-md bg-nude-light flex items-center justify-center shrink-0">
+                  <Repeat size={15} strokeWidth={1.5} className="text-nude-dark" />
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <p className="text-label text-noir truncate">{rule.name}</p>
+                  <p className="text-stone text-[11px] mt-0.5 capitalize">
+                    Todos los {rule.dayLabel} · {formatTime12(rule.startTime)}
+                  </p>
+                  {rule.nextDates.length > 0 && (
+                    <p className="text-stone text-[10px] mt-0.5">
+                      {rule.nextDates.length} fecha{rule.nextDates.length > 1 ? 's' : ''} apartada
+                      {rule.nextDates.length > 1 ? 's' : ''} · próxima{' '}
+                      {(() => {
+                        try {
+                          return format(parseISO(rule.nextDates[0]), "d 'de' MMMM", { locale: es })
+                        } catch {
+                          return rule.nextDates[0]
+                        }
+                      })()}
+                    </p>
+                  )}
+                </div>
+
+                <button
+                  onClick={() => handleCancelRecurring(rule)}
+                  disabled={recurringBusyId === rule.id}
+                  className="text-[11px] text-stone hover:text-noir shrink-0 tap-target disabled:opacity-40"
+                >
+                  {recurringBusyId === rule.id ? 'Cancelando…' : 'Quitar'}
+                </button>
+              </div>
+            ))}
+          </div>
+          <p className="text-stone text-[10px] px-6 mt-2 leading-relaxed">
+            Tu lugar queda apartado cada semana y se reserva solo. Al quitarlo se liberan tus
+            reservas futuras y se te devuelven las clases.
+          </p>
+        </div>
+      )}
 
       {/* ── Historial de pagos ─────────────────────────────────────────── */}
       <div className="mt-6">

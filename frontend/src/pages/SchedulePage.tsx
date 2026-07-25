@@ -51,9 +51,11 @@ export default function SchedulePage() {
     setBookingSlot,
     bookingLoading,
     cancelLoadingId,
+    recurringLoading,
     fetchWeek,
     book,
     cancel,
+    toggleRecurring,
   } = useSchedule()
 
   useEffect(() => {
@@ -94,6 +96,11 @@ export default function SchedulePage() {
   const handleBook = useCallback(
     (slot: ClassSlot) => book(slot, selectedDate, () => setBookingSlot(null)),
     [book, selectedDate, setBookingSlot],
+  )
+
+  const handleToggleRecurring = useCallback(
+    (slot: ClassSlot) => toggleRecurring(slot, selectedDate),
+    [toggleRecurring, selectedDate],
   )
 
   return (
@@ -211,8 +218,10 @@ export default function SchedulePage() {
         bonusClasses={bonusClasses}
         bookingLoading={bookingLoading}
         cancelLoadingId={cancelLoadingId}
+        recurringLoading={recurringLoading}
         onBook={handleBook}
         onCancel={handleCancel}
+        onToggleRecurring={handleToggleRecurring}
         onClose={() => setBookingSlot(null)}
       />
 
