@@ -2,6 +2,7 @@ import cron from 'node-cron'
 import { prisma } from '../lib/prisma'
 import { sendPushToUser } from './webpush'
 import { runRecurringBookings } from './recurring'
+import { reconcilePayment } from './payments'
 
 export function startScheduler(): void {
   // ─── Job 1: Recordatorios de clase cada 30 min ──────────────────────────────
@@ -116,7 +117,43 @@ export function startScheduler(): void {
     }
   })
 
+  // ─── Job 4: Conciliar pagos pendientes cada 15 min ────────────────────────
+  // Red de seguridad por si el webhook de MercadoPago no llegó: sin esto, una
+  // alumna podía quedar cobrada y sin paquete hasta que reclamara.
+  cron.schedule('*/15 * * * *', async () => {
+    try {
+      const now = Date.now()
+      // Se le da margen al webhook antes de ir a preguntar
+      const olderThan = new Date(now - 10 * 60 * 1000)
+      // Más allá de una semana ya no vale la pena seguir preguntando
+      const notBefore = new Date(now - 7 * 24 * 60 * 60 * 1000)
+
+      const stale = await prisma.payment.findMany({
+        where: {
+          status: 'PENDING',
+          createdAt: { lte: olderThan, gte: notBefore },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 50,
+        select: { id: true },
+      })
+
+      let recovered = 0
+
+      for (const row of stale) {
+        const result = await reconcilePayment(row.id, { notifyRecovery: true })
+        if (result === 'APPROVED') recovered++
+      }
+
+      if (recovered > 0) {
+        console.log(`[scheduler] 💳 ${recovered} pago(s) cobrados que no se habían activado — resueltos`)
+      }
+    } catch (err) {
+      console.error('[scheduler] ❌ Error en job de conciliación de pagos:', err)
+    }
+  })
+
   console.log(
-    '⏱️  Scheduler iniciado (recordatorios cada 30min, vencimientos 8:00 AM, horarios fijos 5:00 AM)',
+    '⏱️  Scheduler iniciado (recordatorios 30min, vencimientos 8:00 AM, horarios fijos 5:00 AM, pagos cada 15min)',
   )
 }

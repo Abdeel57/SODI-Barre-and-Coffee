@@ -147,6 +147,8 @@ export const packagesApi = {
 export const paymentsApi = {
   history: () => api.get('/api/payments/history'),
   status: (mpPaymentId: string) => api.get(`/api/payments/status/${mpPaymentId}`),
+  /** Le pregunta a MercadoPago qué pasó con el checkout y activa el paquete si ya se pagó. */
+  reconcile: () => api.post('/api/payments/reconcile'),
 }
 
 export const pushApi = {

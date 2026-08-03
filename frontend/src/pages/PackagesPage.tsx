@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Check, Sparkles, Star } from 'lucide-react'
-import { packagesApi } from '../api'
+import { Check, Sparkles, Star, Loader2, AlertCircle, XCircle } from 'lucide-react'
+import { packagesApi, paymentsApi } from '../api'
 import { useStore } from '../store/useStore'
 import { Skeleton } from '../components/ui/Skeleton'
 import { Button } from '../components/ui/Button'
@@ -293,6 +293,57 @@ function PackageCard({
   )
 }
 
+// ─── Confirmación del pago al volver de MercadoPago ───────────────────────────
+type ConfirmState = { state: 'idle' | 'checking' | 'approved' | 'failed' | 'unconfirmed' }
+
+function PaymentBanner({ state }: { state: ConfirmState['state'] }) {
+  if (state === 'idle' || state === 'approved') return null
+
+  if (state === 'checking') {
+    return (
+      <div className="mx-4 mt-5 rounded-2xl border border-nude-border bg-white px-5 py-4 flex items-center gap-3">
+        <Loader2 size={18} strokeWidth={1.5} className="text-nude-dark shrink-0 animate-spin" />
+        <div className="min-w-0">
+          <p className="font-body text-[14px] font-medium text-noir">Confirmando tu pago…</p>
+          <p className="text-label text-stone text-[11px] mt-0.5 leading-relaxed">
+            Estamos verificando con MercadoPago. No cierres la app.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  if (state === 'failed') {
+    return (
+      <div className="mx-4 mt-5 rounded-2xl border border-red-200 bg-red-50 px-5 py-4 flex items-start gap-3">
+        <XCircle size={18} strokeWidth={1.5} className="text-red-500 shrink-0 mt-0.5" />
+        <div className="min-w-0">
+          <p className="font-body text-[14px] font-medium text-red-800">El pago no se completó</p>
+          <p className="text-label text-red-700/80 text-[11px] mt-0.5 leading-relaxed">
+            No se te hizo ningún cargo. Puedes intentar de nuevo cuando quieras.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  // unconfirmed — la verdad: no sabemos todavía, y no vamos a inventar
+  return (
+    <div className="mx-4 mt-5 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 flex items-start gap-3">
+      <AlertCircle size={18} strokeWidth={1.5} className="text-amber-600 shrink-0 mt-0.5" />
+      <div className="min-w-0">
+        <p className="font-body text-[14px] font-medium text-amber-900">
+          Estamos confirmando tu pago
+        </p>
+        <p className="text-label text-amber-800/80 text-[11px] mt-0.5 leading-relaxed">
+          Todavía no lo vemos acreditado. Si pagaste con OXXO o transferencia puede tardar.
+          En cuanto se acredite te avisamos y tu paquete se activa solo — no vuelvas a pagar.
+        </p>
+      </div>
+    </div>
+  )
+}
+
 // ─── Section header ───────────────────────────────────────────────────────────
 function SectionHeader({ title, subtitle }: { title: string; subtitle?: string }) {
   return (
@@ -312,6 +363,7 @@ export default function PackagesPage() {
   const [subscription, setSubscription] = useState<Subscription | null>(null)
   const [loading,      setLoading]      = useState(true)
   const [loadingId,    setLoadingId]    = useState<string | null>(null)
+  const [confirm,      setConfirm]      = useState<ConfirmState>({ state: 'idle' })
 
   const fetchData = useCallback(async () => {
     try {
@@ -328,20 +380,62 @@ export default function PackagesPage() {
     }
   }, [showToast])
 
-  // Handle MercadoPago return
+  // ── Regreso de MercadoPago ────────────────────────────────────────────────
+  // El parámetro de la URL NO prueba que se haya cobrado: MercadoPago regresa
+  // por aquí aunque el pago quede pendiente o se abandone. Se le pregunta al
+  // servidor, que a su vez le pregunta a MercadoPago, antes de decir nada.
   useEffect(() => {
     const status = searchParams.get('status')
-    if (status === 'success') {
-      showToast('¡Pago exitoso! Tu plan está activo 🎉', 'success')
-      packagesApi.mySubscription().then((r) => {
-        setSubscription((r.data?.subscription as Subscription) ?? null)
-      }).catch(() => null)
-    } else if (status === 'failure') {
-      showToast('El pago no se completó', 'error')
-    } else if (status === 'pending') {
-      showToast('Pago pendiente de confirmación', 'info')
+    if (!status) return
+
+    setSearchParams({}, { replace: true })
+
+    if (status === 'failure') {
+      setConfirm({ state: 'failed' })
+      return
     }
-    if (status) setSearchParams({}, { replace: true })
+
+    let cancelled = false
+
+    async function confirmPayment() {
+      setConfirm({ state: 'checking' })
+
+      // MercadoPago puede tardar unos segundos en acreditar
+      for (let attempt = 0; attempt < 6; attempt++) {
+        if (cancelled) return
+
+        try {
+          const { data } = await paymentsApi.reconcile()
+
+          if (data?.status === 'APPROVED') {
+            if (cancelled) return
+            setConfirm({ state: 'approved' })
+            showToast('¡Pago confirmado! Tu plan está activo 🎉', 'success')
+            packagesApi.mySubscription()
+              .then((r) => setSubscription((r.data?.subscription as Subscription) ?? null))
+              .catch(() => null)
+            return
+          }
+
+          if (data?.status === 'REJECTED') {
+            if (cancelled) return
+            setConfirm({ state: 'failed' })
+            return
+          }
+        } catch {
+          // Sin conexión o error del servidor: se reintenta
+        }
+
+        await new Promise((r) => setTimeout(r, 3000))
+      }
+
+      if (cancelled) return
+      // No se pudo confirmar: se dice la verdad en vez de felicitar
+      setConfirm({ state: 'unconfirmed' })
+    }
+
+    confirmPayment()
+    return () => { cancelled = true }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { fetchData() }, [fetchData])
@@ -396,6 +490,9 @@ export default function PackagesPage() {
           Elige el plan que mejor se adapte a tu ritmo.
         </p>
       </header>
+
+      {/* Confirmación del pago al volver de MercadoPago */}
+      <PaymentBanner state={confirm.state} />
 
       {/* Promo de inauguración */}
       {!loading && promo && <PromoBanner promo={promo} />}

@@ -152,14 +152,23 @@ model Subscription {
 }
 
 model Payment {
-  id          String        @id @default(cuid())
-  userId      String
-  packageId   String
-  amountMXN   Float
-  mpPaymentId String        @unique
-  status      PaymentStatus @default(PENDING)
-  createdAt   DateTime      @default(now())
-  user        User          @relation(fields: [userId], references: [id])
+  id            String        @id @default(cuid())
+  userId        String
+  packageId     String
+  amountMXN     Float
+  mpPaymentId   String        @unique
+  /// ID de la preferencia (el checkout). Es lo que amarra el registro pendiente
+  /// con el pago real de MercadoPago: sin esto no se pueden reconciliar.
+  preferenceId  String?       @unique
+  status        PaymentStatus @default(PENDING)
+  createdAt     DateTime      @default(now())
+  /// Cuándo se resolvió (aprobado o rechazado)
+  resolvedAt    DateTime?
+  /// Última vez que se le preguntó a MercadoPago por este pago
+  lastCheckedAt DateTime?
+  user          User          @relation(fields: [userId], references: [id])
+
+  @@index([status, createdAt])
 }
 
 enum Role {
