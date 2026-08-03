@@ -5,7 +5,8 @@ import { auth } from '../middleware/auth'
 import { createError } from '../middleware/errorHandler'
 import { toLocalDateString, toRangeDateString } from '../lib/classDates'
 import { countHeldSeats } from '../lib/recurringSeats'
-import { cancelBooking } from '../services/booking'
+import { studioToday } from '../lib/studioTime'
+import { cancelBooking, normalizeDate } from '../services/booking'
 import {
   HORIZON_WEEKS,
   MAX_ACTIVE_RULES,
@@ -145,8 +146,7 @@ router.post('/', auth, async (req: Request, res: Response, next: NextFunction) =
     }
 
     // 4. Crear (o revivir) la regla y materializar el horizonte de inmediato
-    const startDate = new Date()
-    startDate.setHours(0, 0, 0, 0)
+    const startDate = normalizeDate(studioToday())
 
     const rule = await prisma.recurringBooking.upsert({
       where: { userId_classId: { userId, classId } },
@@ -195,8 +195,7 @@ router.delete('/:id', auth, async (req: Request, res: Response, next: NextFuncti
       data: { isActive: false, cancelledAt: new Date() },
     })
 
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
+    const today = normalizeDate(studioToday())
 
     const futureBookings = await prisma.booking.findMany({
       where: { recurringId: rule.id, status: 'CONFIRMED', date: { gte: today } },

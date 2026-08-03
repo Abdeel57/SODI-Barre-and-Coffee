@@ -10,7 +10,8 @@
 
 import { prisma } from '../lib/prisma'
 import { isClassActiveOn, toLocalDateString, toRangeDateString } from '../lib/classDates'
-import { attemptBooking, BookingErrorCode } from './booking'
+import { studioToday } from '../lib/studioTime'
+import { attemptBooking, BookingErrorCode, normalizeDate } from './booking'
 import { sendPushToUser } from './webpush'
 
 /** Semanas por adelantado que se mantienen reservadas. */
@@ -24,10 +25,9 @@ export function dayLabel(dayOfWeek: number): string {
   return DAY_LABELS[dayOfWeek] ?? ''
 }
 
+/** Hoy según el estudio, no según el servidor (que corre en UTC). */
 function startOfToday(): Date {
-  const d = new Date()
-  d.setHours(0, 0, 0, 0)
-  return d
+  return normalizeDate(studioToday())
 }
 
 interface OccurrenceClass {
@@ -98,7 +98,7 @@ export async function materializeRule(ruleId: string): Promise<MaterializeResult
   if (!rule || !rule.isActive) return result
 
   // La clase se dio de baja o ya terminó → el horario fijo muere con ella
-  const todayStr = toLocalDateString(new Date())
+  const todayStr = studioToday()
   const classEnded = rule.class.endDate && todayStr > toRangeDateString(rule.class.endDate)
   if (!rule.class.isActive || classEnded) {
     await deactivateRule(rule.id)

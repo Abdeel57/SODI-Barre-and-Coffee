@@ -14,6 +14,7 @@
 
 import { prisma } from './prisma'
 import { toLocalDateString } from './classDates'
+import { studioToday } from './studioTime'
 
 interface RuleWindow {
   userId: string
@@ -108,7 +109,7 @@ export async function buildHeldSeatIndex(params: {
   viewerId: string
 }): Promise<HeldSeatIndex> {
   const { from, to, viewerId } = params
-  const todayStr = toLocalDateString(new Date())
+  const todayStr = studioToday()
 
   const [rules, bookings] = await Promise.all([
     prisma.recurringBooking.findMany({

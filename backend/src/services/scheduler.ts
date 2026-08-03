@@ -3,6 +3,12 @@ import { prisma } from '../lib/prisma'
 import { sendPushToUser } from './webpush'
 import { runRecurringBookings } from './recurring'
 import { reconcilePayment } from './payments'
+import { STUDIO_TZ, studioDateString } from '../lib/studioTime'
+import { getClassDateTime, normalizeDate } from './booking'
+
+// Los horarios de abajo son hora del estudio, no del servidor: sin esto el
+// aviso "de las 8:00 AM" salía a la 1 de la madrugada en Tijuana.
+const CRON_OPTS = { timezone: STUDIO_TZ }
 
 export function startScheduler(): void {
   // ─── Job 1: Recordatorios de clase cada 30 min ──────────────────────────────
@@ -12,15 +18,17 @@ export function startScheduler(): void {
       const windowStart = new Date(now.getTime() + 110 * 60 * 1000) // +1h50m
       const windowEnd = new Date(now.getTime() + 130 * 60 * 1000)   // +2h10m
 
-      const startOfToday = new Date(now)
-      startOfToday.setHours(0, 0, 0, 0)
-      const endOfToday = new Date(now)
-      endOfToday.setHours(23, 59, 59, 999)
+      // Hoy y mañana del estudio: una clase de la noche cae en el día UTC
+      // siguiente, y con una sola ventana de "hoy" se quedaba sin recordatorio.
+      const days = [
+        normalizeDate(studioDateString(now)),
+        normalizeDate(studioDateString(new Date(now.getTime() + 24 * 60 * 60 * 1000))),
+      ]
 
       const bookings = await prisma.booking.findMany({
         where: {
           status: 'CONFIRMED',
-          date: { gte: startOfToday, lte: endOfToday },
+          date: { in: days },
           user: { pushToken: { not: null } },
         },
         include: {
@@ -36,10 +44,7 @@ export function startScheduler(): void {
         const bookingDayOfWeek = new Date(booking.date).getDay()
         if (bookingDayOfWeek !== booking.class.dayOfWeek) continue
 
-        // Calcular datetime exacto de la clase
-        const [hours, minutes] = booking.class.startTime.split(':').map(Number)
-        const classDateTime = new Date(booking.date)
-        classDateTime.setHours(hours, minutes, 0, 0)
+        const classDateTime = getClassDateTime(new Date(booking.date), booking.class.startTime)
 
         if (classDateTime >= windowStart && classDateTime <= windowEnd) {
           await sendPushToUser(booking.userId, {
@@ -56,7 +61,7 @@ export function startScheduler(): void {
     } catch (err) {
       console.error('[scheduler] ❌ Error en job de recordatorios:', err)
     }
-  })
+  }, CRON_OPTS)
 
   // ─── Job 2: Alertas de vencimiento diarias a las 8:00 AM ──────────────────
   cron.schedule('0 8 * * *', async () => {
@@ -102,7 +107,7 @@ export function startScheduler(): void {
     } catch (err) {
       console.error('[scheduler] ❌ Error en job de vencimiento:', err)
     }
-  })
+  }, CRON_OPTS)
 
   // ─── Job 3: Horarios fijos, diario a las 5:00 AM ──────────────────────────
   // Empuja el horizonte de reservas de las alumnas con horario fijo.
@@ -115,7 +120,7 @@ export function startScheduler(): void {
     } catch (err) {
       console.error('[scheduler] ❌ Error en job de horarios fijos:', err)
     }
-  })
+  }, CRON_OPTS)
 
   // ─── Job 4: Conciliar pagos pendientes cada 15 min ────────────────────────
   // Red de seguridad por si el webhook de MercadoPago no llegó: sin esto, una
@@ -151,9 +156,9 @@ export function startScheduler(): void {
     } catch (err) {
       console.error('[scheduler] ❌ Error en job de conciliación de pagos:', err)
     }
-  })
+  }, CRON_OPTS)
 
   console.log(
-    '⏱️  Scheduler iniciado (recordatorios 30min, vencimientos 8:00 AM, horarios fijos 5:00 AM, pagos cada 15min)',
+    `⏱️  Scheduler iniciado en ${STUDIO_TZ} (recordatorios 30min, vencimientos 8:00 AM, horarios fijos 5:00 AM, pagos cada 15min)`,
   )
 }

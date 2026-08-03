@@ -101,11 +101,6 @@ router.get('/week', auth, async (req: Request, res: Response, next: NextFunction
           const heldSeats = heldSeatIndex.heldSeats(c.id, dateStr)
           const recurringId = heldSeatIndex.recurringIdFor(c.id, dateStr)
 
-          // Construir datetime de la clase para este día
-          const [h, m] = c.startTime.split(':').map(Number)
-          const classDateTime = new Date(day)
-          classDateTime.setHours(h, m, 0, 0)
-
           return {
             classId: c.id,
             name: c.name,
@@ -120,7 +115,9 @@ router.get('/week', auth, async (req: Request, res: Response, next: NextFunction
             /** La alumna tiene horario fijo en esta clase: su lugar está apartado. */
             isRecurring: recurringId !== null,
             recurringId,
-            date: classDateTime.toISOString(),
+            /** Día del calendario ("YYYY-MM-DD"). Antes venía como instante y
+             *  se calculaba con la hora del servidor, no la del estudio. */
+            date: dateStr,
           }
         })
         .sort((a, b) => a.startTime.localeCompare(b.startTime))

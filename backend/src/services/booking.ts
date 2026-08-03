@@ -7,6 +7,7 @@
 
 import { prisma } from '../lib/prisma'
 import { isClassActiveOn, toLocalDateString, toRangeDateString } from '../lib/classDates'
+import { studioInstant } from '../lib/studioTime'
 import { countHeldSeats } from '../lib/recurringSeats'
 
 /** Minutos de anticipación mínimos para poder reservar. */
@@ -14,11 +15,14 @@ export const MIN_LEAD_MINUTES = 60
 /** Horas antes de la clase en las que cancelar todavía devuelve la clase. */
 export const REFUND_WINDOW_HOURS = 3
 
+/**
+ * Instante real en que empieza la clase.
+ * La hora ("18:00") es hora del estudio, no del servidor: interpretarla como
+ * hora del servidor (UTC en Railway) adelantaba la clase 7 horas y cerraba las
+ * reservas media jornada antes de tiempo.
+ */
 export function getClassDateTime(date: Date, startTime: string): Date {
-  const [hours, minutes] = startTime.split(':').map(Number)
-  const dt = new Date(date)
-  dt.setHours(hours, minutes, 0, 0)
-  return dt
+  return studioInstant(toLocalDateString(date), startTime)
 }
 
 /** "2026-07-29" o ISO completo → medianoche local, que es como se guarda Booking.date. */
